@@ -89,6 +89,21 @@ def smoothstep(a: float, b: float, x: float) -> float:
 # ---------------------------------------------------------------- assets
 
 _cache: dict[str, Image.Image] = {}
+_icon_cache: dict[int, Image.Image] = {}
+
+
+def app_icon(size: int) -> Image.Image:
+    """The PlaylistVault shield, pre-cut to transparency.
+
+    resources/logo-mark.png is the mark alone — no plate, no background — so it
+    composites straight onto the animated gradient. The installer icon
+    (resources/icon.png) keeps its dark rounded plate because Windows expects
+    one; this is the same mark without it.
+    """
+    if size not in _icon_cache:
+        mark = Image.open(ROOT.parent / "resources" / "logo-mark.png").convert("RGBA")
+        _icon_cache[size] = mark.resize((size, size), Image.LANCZOS)
+    return _icon_cache[size]
 
 
 def load(name: str, folder: Path = FRAMES) -> Image.Image:
@@ -323,35 +338,13 @@ def sc_logo(p: float, t: float) -> Image.Image:
 
     # Shield mark, scaling in with a slight overshoot.
     e = ease_out_back(clamp01(p / 0.42)) if p < 0.42 else 1.0
-    s = 0.5 + 0.5 * e
-    size = int(300 * s)
+    sc = 0.5 + 0.5 * e
+    size = max(2, int(300 * sc))
     cx, cy = W // 2, int(H * 0.42)
 
-    mark = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    md = ImageDraw.Draw(mark)
-    u = size / 24.0
-    pts = [(12 * u, 2.2 * u), (20.6 * u, 6.0 * u), (20.6 * u, 13.2 * u),
-           (12 * u, 21.8 * u), (3.4 * u, 13.2 * u), (3.4 * u, 6.0 * u)]
-    # gradient fill via vertical bands
-    for i in range(size):
-        f = i / max(1, size - 1)
-        col = tuple(int(ACCENT[k] + (CYAN[k] - ACCENT[k]) * f) for k in range(3))
-        md.line([(0, i), (size, i)], fill=(*col, 255))
-    shield = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(shield).polygon(pts, fill=255)
-    mark.putalpha(shield)
-
-    # play triangle knocked out
-    tri = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(tri).polygon([(9.7 * u, 8.6 * u), (9.7 * u, 15.4 * u), (15.9 * u, 12 * u)], fill=255)
-    tri = tri.filter(ImageFilter.GaussianBlur(0.6))
-    base_a = mark.getchannel("A")
-    mark.putalpha(ImageChops.subtract(base_a, tri))
-
+    mark = app_icon(size)
     glow = mark.filter(ImageFilter.GaussianBlur(34))
-    img.paste(Image.alpha_composite(
-        Image.new("RGBA", (size, size), (0, 0, 0, 0)), glow),
-        (cx - size // 2, cy - size // 2), glow)
+    img.paste(glow, (cx - size // 2, cy - size // 2), glow)
     img.paste(mark, (cx - size // 2, cy - size // 2), mark)
 
     # Wordmark
@@ -593,28 +586,13 @@ def sc_endcard(p: float, t: float) -> Image.Image:
     img = frame_base(t).convert("RGB")
     e = ease_out_expo(clamp01(p / 0.4))
 
-    size = 190
+    base = 190
     cx, cy = W // 2, int(H * 0.34)
-    mark = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    u = size / 24.0
-    for i in range(size):
-        f = i / max(1, size - 1)
-        col = tuple(int(ACCENT[k] + (CYAN[k] - ACCENT[k]) * f) for k in range(3))
-        ImageDraw.Draw(mark).line([(0, i), (size, i)], fill=(*col, 255))
-    shield = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(shield).polygon(
-        [(12 * u, 2.2 * u), (20.6 * u, 6.0 * u), (20.6 * u, 13.2 * u),
-         (12 * u, 21.8 * u), (3.4 * u, 13.2 * u), (3.4 * u, 6.0 * u)], fill=255)
-    mark.putalpha(shield)
-    tri = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(tri).polygon([(9.7 * u, 8.6 * u), (9.7 * u, 15.4 * u), (15.9 * u, 12 * u)], fill=255)
-    mark.putalpha(ImageChops.subtract(mark.getchannel("A"), tri))
-
-    sc = 0.85 + 0.15 * e
-    m = mark.resize((int(size * sc), int(size * sc)), Image.LANCZOS)
+    size = max(2, int(base * (0.85 + 0.15 * e)))
+    m = app_icon(size)
     g = m.filter(ImageFilter.GaussianBlur(30))
-    img.paste(g, (cx - m.width // 2, cy - m.height // 2), g)
-    img.paste(m, (cx - m.width // 2, cy - m.height // 2), m)
+    img.paste(g, (cx - size // 2, cy - size // 2), g)
+    img.paste(m, (cx - size // 2, cy - size // 2), m)
 
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)

@@ -21,9 +21,18 @@
   }
 </script>
 <link rel="icon" type="image/png" href="assets/icon.png">
+<link rel="preload" as="image" href="assets/shot-home.webp" fetchpriority="high">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Loaded async: a blocking font stylesheet delays first paint by a full
+     round-trip. font-display:swap renders text immediately in the fallback. -->
+<link rel="preload" as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'">
+<noscript>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+</noscript>
 
 <style>
   :root{
@@ -47,7 +56,12 @@
      overflow:hidden keeps the oversized blobs from creating a scrollbar. */
   .glow{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
   .glow span{position:absolute;display:block;border-radius:50%;
-    will-change:transform;transform:translateZ(0)}
+    transform:translateZ(0)}
+  /* Promoting four large layers permanently costs memory, so only hint while
+     they are actually animating. */
+  html.js .glow span{will-change:transform}
+  /* Paused when the hero scrolls away, so idle CPU and battery drain go to zero. */
+  .glow.paused span{animation-play-state:paused}
 
   .g1{width:78vmax;height:60vmax;top:-26vmax;left:-18vmax;
     background:radial-gradient(circle at 50% 50%, rgba(79,70,229,.30), transparent 62%);
@@ -255,7 +269,7 @@
 
 <nav>
   <div class="nav-in">
-    <a href="#" class="brand"><img src="assets/icon.png" alt="">PlaylistVault</a>
+    <a href="#" class="brand"><img src="assets/icon.png" alt="" width="32" height="32" decoding="async">PlaylistVault</a>
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#how">How it works</a>
@@ -285,7 +299,13 @@
   <p class="cta-note">Windows 10/11 · 95 MB · No account required</p>
 
   <div class="shot rv">
-    <img src="assets/shot-home.jpg" alt="PlaylistVault analysing a 19-video playlist, showing duration, estimated size and per-video selection" loading="eager" width="1568" height="882">
+    <picture>
+      <source srcset="assets/shot-home.webp" type="image/webp">
+      <img src="assets/shot-home.jpg"
+           alt="PlaylistVault analysing a 19-video playlist, showing duration, estimated size and per-video selection"
+           loading="eager" fetchpriority="high" decoding="async"
+           width="1568" height="882">
+    </picture>
   </div>
 </header>
 
@@ -342,7 +362,11 @@
         <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Searchable, works offline, no dependencies</li>
       </ul>
     </div>
-    <div class="rv"><img src="assets/shot-options.jpg" alt="Download options with quality, container and organisation settings" loading="lazy"></div>
+    <div class="rv"><picture>
+      <source srcset="assets/shot-options.webp" type="image/webp">
+      <img src="assets/shot-options.jpg" alt="Download options with quality, container and organisation settings"
+           loading="lazy" decoding="async" width="1568" height="882">
+    </picture></div>
   </div>
 </section>
 
@@ -359,7 +383,11 @@
         <li><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Drag a link straight onto the window</li>
       </ul>
     </div>
-    <div class="rv"><img src="assets/shot-settings.jpg" alt="Settings page showing theme, accent colour and download preferences" loading="lazy"></div>
+    <div class="rv"><picture>
+      <source srcset="assets/shot-settings.webp" type="image/webp">
+      <img src="assets/shot-settings.jpg" alt="Settings page showing theme, accent colour and download preferences"
+           loading="lazy" decoding="async" width="1568" height="882">
+    </picture></div>
   </div>
 </section>
 
@@ -368,7 +396,7 @@
   <h2 class="rv">Thirty-six seconds</h2>
   <p class="lede rv">Real footage of the app — no mockups, no motion-graphics fakery.</p>
   <div class="shot rv">
-    <video controls preload="metadata" poster="assets/shot-home.jpg" playsinline>
+    <video controls preload="none" poster="assets/shot-home.webp" playsinline width="1920" height="1080">
       <source src="assets/demo.mp4" type="video/mp4">
       Your browser does not support video playback.
     </video>
@@ -479,6 +507,20 @@
 
 <script>
   // Reveal on scroll, and respect users who prefer less motion.
+  // Stop the backdrop animating once it's off-screen or the tab is hidden.
+  const glow = document.querySelector('.glow');
+  if (glow && 'IntersectionObserver' in window) {
+    const hero = document.querySelector('header.hero');
+    if (hero) {
+      new IntersectionObserver(([e]) => {
+        glow.classList.toggle('paused', !e.isIntersecting);
+      }, { rootMargin: '200px' }).observe(hero);
+    }
+    document.addEventListener('visibilitychange', () => {
+      glow.classList.toggle('paused', document.hidden);
+    });
+  }
+
   const items = document.querySelectorAll('.rv');
   if (!document.documentElement.classList.contains('js')) {
     items.forEach(el => el.classList.add('in'));

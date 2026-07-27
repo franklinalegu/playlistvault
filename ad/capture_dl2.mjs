@@ -21,7 +21,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 process.on('uncaughtException', (e) => log('UNCAUGHT ' + (e?.stack || e)));
 
-const CLIP = '/tmp/srv/clip.mp4';
+const CLIP = '/tmp/vsrv/clip.mp4';
 const TITLES = [
   'Cinematic Landscapes — Volume One',
   'Studio Session: Late Night Keys',
