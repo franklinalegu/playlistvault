@@ -62,16 +62,30 @@ jobs:
           }
           Write-Host "Version check passed: $pkg"
 
-      - name: Build and publish
+      # Two explicit steps rather than one with inline conditionals. The
+      # previous single-step version interpolated both the --publish value and
+      # an EP_DRAFT env var, and failed in 6s before electron-builder even
+      # started. Keeping the commands literal makes failures readable.
+      - name: Build and publish (tagged release)
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Publish only for real tags; manual runs produce artifacts only.
-          EP_DRAFT: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        run: npx electron-builder --win nsis --x64 --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        run: npx electron-builder --win nsis --x64 --publish always
+
+      - name: Build only (manual run)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: npx electron-builder --win nsis --x64 --publish never
 
       - name: Show what was produced
+        if: always()
         shell: pwsh
-        run: Get-ChildItem release -Recurse -Include *.exe, *.yml, *.blockmap | Select-Object Name, Length
+        run: |
+          if (Test-Path release) {
+            Get-ChildItem release -Recurse -Include *.exe, *.yml, *.blockmap |
+              Select-Object Name, @{n='MB';e={[math]::Round($_.Length/1MB,1)}}
+          } else {
+            Write-Host 'No release directory was produced.'
+          }
 
       # Keep the build even when not publishing, so manual runs are still useful.
       - name: Upload installer as a workflow artifact
