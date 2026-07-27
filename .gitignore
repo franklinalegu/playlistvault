@@ -23,7 +23,8 @@ ad/*.log
 ad/duration*.txt
 ad/__pycache__/
 
-# Downloaded media (never commit user content)
+# Downloaded media (never commit user content).
+# The landing page's own assets are exempted below.
 downloads/
 *.mp4
 *.mkv
@@ -33,6 +34,10 @@ downloads/
 *.part
 *.ytdl
 *.info.json
+
+# The landing page ships a demo video and screenshots; these are project
+# assets, not downloaded content, so they override the media rules above.
+!site/assets/**
 
 # Secrets and signing material — must never be committed
 .env
