@@ -17,6 +17,7 @@ import type { HistoryService } from '@backend/storage/historyService.js';
 import type { DownloadManager } from '@backend/download/downloadManager.js';
 import { analyzePlaylist, type AnalyzeHandle } from '@backend/playlist/analyzer.js';
 import { checkBinaries } from '@backend/ffmpeg/binaries.js';
+import { log } from '@backend/util/logger.js';
 import { installDependency } from '@backend/setup/dependencyInstaller.js';
 import { isSafeDestination } from '@backend/util/sanitize.js';
 import { checkForUpdates, installUpdate } from './updater.js';
@@ -42,7 +43,7 @@ function handle<T>(
       return { ok: true, data } satisfies ApiResult<T>;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[ipc:${channel}]`, message);
+      log.error(`ipc:${channel}`, message);
       return { ok: false, error: message } satisfies ApiResult<T>;
     }
   });
@@ -220,10 +221,19 @@ export function registerIpcHandlers(deps: Deps): void {
     node: process.versions.node,
     platform: `${process.platform} ${process.arch}`,
     userDataPath: app.getPath('userData'),
+    logPath: log.getPath() ?? undefined,
     binaries: await checkBinaries()
   }));
 
   handle(IPC.appCheckBinaries, () => checkBinaries());
+
+  handle<boolean>(IPC.appOpenLog, async () => {
+    const target = log.getPath();
+    if (!target) throw new Error('No log file has been created yet.');
+    const error = await shell.openPath(target);
+    if (error) throw new Error(error);
+    return true;
+  });
 
   handle<string>(IPC.appInstallDependency, (name: DependencyName) =>
     installDependency(name, (progress) => send(IPC.appDependencyProgress, progress))

@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell, nativeTheme } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setUserDataDir } from '@backend/ffmpeg/binaries.js';
+import { initLogger, log } from '@backend/util/logger.js';
 import { SettingsService } from '@backend/settings/settingsService.js';
 import { HistoryService } from '@backend/storage/historyService.js';
 import { DownloadManager } from '@backend/download/downloadManager.js';
@@ -79,6 +80,11 @@ app.whenReady().then(() => {
   const userData = app.getPath('userData');
   // Tools installed at first run live under userData/bin.
   setUserDataDir(userData);
+
+  // Start logging before anything else can fail.
+  initLogger(userData);
+  log.info('app', `PlaylistVault ${app.getVersion()} starting`);
+  log.info('app', `platform=${process.platform} ${process.arch} electron=${process.versions.electron} node=${process.versions.node}`);
   const downloadsDir = path.join(app.getPath('downloads'), 'PlaylistVault');
 
   const settings = new SettingsService(userData, downloadsDir);
@@ -120,13 +126,15 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  log.info('app', 'shutting down');
   downloadManager?.shutdown();
+  log.close();
 });
 
 // Never let an unexpected error take the whole app down silently.
 process.on('uncaughtException', (error) => {
-  console.error('[PlaylistVault] Uncaught exception:', error);
+  log.error('uncaught', error);
 });
 process.on('unhandledRejection', (reason) => {
-  console.error('[PlaylistVault] Unhandled rejection:', reason);
+  log.error('unhandled-rejection', reason);
 });

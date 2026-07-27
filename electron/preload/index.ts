@@ -84,6 +84,7 @@ const api = {
       ipcRenderer.invoke(IPC.appCheckBinaries),
     installDependency: (name: DependencyName): Promise<ApiResult<string>> =>
       ipcRenderer.invoke(IPC.appInstallDependency, name),
+    openLog: (): Promise<ApiResult<boolean>> => ipcRenderer.invoke(IPC.appOpenLog),
     onDependencyProgress: (cb: (p: DependencyProgress) => void): (() => void) =>
       subscribe(IPC.appDependencyProgress, cb),
     onClipboardUrl: (cb: (url: string) => void): (() => void) =>

@@ -195,6 +195,8 @@ export interface AppInfo {
   node: string;
   platform: string;
   userDataPath: string;
+  /** Absolute path of the current log file, if logging started successfully. */
+  logPath?: string;
   binaries: BinaryStatus[];
 }
 
@@ -254,6 +256,7 @@ export const IPC = {
   appInfo: 'app:info',
   appCheckBinaries: 'app:check-binaries',
   appInstallDependency: 'app:install-dependency',
+  appOpenLog: 'app:open-log',
   appDependencyProgress: 'app:dependency-progress',
   updateCheck: 'update:check',
   updateInstall: 'update:install',

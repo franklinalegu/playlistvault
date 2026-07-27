@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { FiCheckCircle, FiFolder, FiRefreshCw, FiRotateCcw, FiXCircle } from 'react-icons/fi';
+import {
+  FiCheckCircle,
+  FiFileText,
+  FiFolder,
+  FiRefreshCw,
+  FiRotateCcw,
+  FiXCircle
+} from 'react-icons/fi';
 import type { BinaryStatus, ThemeMode } from '@shared/types';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -224,6 +231,23 @@ export function Settings(): JSX.Element {
               </p>
             )}
           </div>
+        </Section>
+
+        <Section title="Diagnostics">
+          <p className="mb-3 text-xs leading-relaxed text-slate-500">
+            PlaylistVault writes a log of downloads and errors. If something goes wrong, open the
+            log and include it in your bug report — paths and credentials are masked automatically.
+          </p>
+          <button
+            onClick={async () => {
+              const res = await window.vault.system.openLog();
+              if (!res.ok) error('Could not open the log', res.error);
+            }}
+            className="btn-ghost"
+          >
+            <FiFileText className="h-4 w-4" />
+            Open log file
+          </button>
         </Section>
 
         <Section title="Storage">

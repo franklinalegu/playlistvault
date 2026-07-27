@@ -17,6 +17,7 @@ import { parseProgressLine } from './progress.js';
 import { padIndex, sanitizeFilename, isSafeDestination } from '../util/sanitize.js';
 import { findInfoJson, readVideoLinks, cleanupInfoJson, type VideoLinks } from '../manifest/linkExtractor.js';
 import { writeManifest } from '../manifest/manifestWriter.js';
+import { log } from '../util/logger.js';
 import { resolveBinaries } from '../ffmpeg/binaries.js';
 
 const MAX_ATTEMPTS = 3;
@@ -253,6 +254,7 @@ export class DownloadManager extends EventEmitter {
       await this.assertWritable(job.destination);
     } catch (error) {
       const message = describeDestinationError(error, job.destination);
+      log.error('download', `destination unusable: ${job.destination} -> ${message}`);
       job.status = 'failed';
       job.completedAt = new Date().toISOString();
       for (const item of job.items) {
@@ -302,7 +304,7 @@ export class DownloadManager extends EventEmitter {
     if (job.options.writeResourceManifest &&
         (job.status === 'completed' || job.status === 'failed')) {
       await this.writeResourceManifest(job).catch((error) => {
-        console.error('[manifest]', error);
+        log.error('manifest', error);
       });
     }
 
@@ -462,6 +464,7 @@ export class DownloadManager extends EventEmitter {
 
       const message = humanizeYtDlpError(result.stderr, result.code);
       item.error = message;
+      log.warn('download', `"${item.title}" attempt ${item.attempts} failed: ${message}`);
 
       // Some failures will never succeed on retry — stop burning attempts.
       if (isPermanentFailure(message) || item.attempts >= MAX_ATTEMPTS) {
