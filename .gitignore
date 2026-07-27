@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+release/
+out/
+*.tsbuildinfo
+
+# Bundled third-party binaries (fetched via `npm run fetch:binaries`)
+resources/bin/
+
+# Advertorial render intermediates — the source scripts ARE tracked,
+# the multi-GB frame sequences and encoded videos are not.
+ad/out/
+ad/out_v/
+ad/out_s/
+ad/frames_dl/
+ad/*.mp4
+ad/*.wav
+ad/*.log
+ad/duration*.txt
+ad/__pycache__/
+
+# Downloaded media (never commit user content)
+downloads/
+*.mp4
+*.mkv
+*.webm
+*.m4a
+*.mp3
+*.part
+*.ytdl
+*.info.json
+
+# Secrets and signing material — must never be committed
+.env
+.env.*
+*.pfx
+*.p12
+*.pem
+*.key
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.local
+*.swp
+
+# Test and coverage artifacts
+coverage/
+.nyc_output/
