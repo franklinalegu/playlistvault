@@ -15,10 +15,11 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 
 const execFileAsync = promisify(execFile);
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BIN_DIR = path.join(ROOT, 'resources', 'bin');
 const FORCE = process.argv.includes('--force');
 
@@ -124,6 +125,7 @@ async function download(url, target, redirects = 0) {
 
 main().catch((error) => {
   console.error(`\n✗ ${error.message}`);
+  if (error.cause) console.error(`  cause: ${error.cause}`);
   console.error('\nYou can also install the binaries manually:');
   console.error('  1. yt-dlp:  https://github.com/yt-dlp/yt-dlp/releases');
   console.error('  2. FFmpeg:  https://www.gyan.dev/ffmpeg/builds/');
