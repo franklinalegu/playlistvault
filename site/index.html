@@ -40,11 +40,43 @@
     font:16px/1.65 Inter,-apple-system,"Segoe UI",system-ui,sans-serif;
     -webkit-font-smoothing:antialiased; overflow-x:hidden;
   }
-  .glow{position:fixed;inset:0;pointer-events:none;z-index:0;
-    background:
-      radial-gradient(60rem 40rem at 15% -5%, rgba(79,70,229,.22), transparent 60%),
-      radial-gradient(50rem 35rem at 88% 5%, rgba(14,165,233,.13), transparent 60%),
-      radial-gradient(45rem 40rem at 50% 95%, rgba(147,51,234,.10), transparent 60%);}
+  /* Animated aurora backdrop.
+     Each blob is its own layer so they drift independently and never visibly
+     loop in sync. Only transform/opacity are animated — both are composited on
+     the GPU, so this does not trigger layout or paint on every frame.
+     overflow:hidden keeps the oversized blobs from creating a scrollbar. */
+  .glow{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+  .glow span{position:absolute;display:block;border-radius:50%;
+    will-change:transform;transform:translateZ(0)}
+
+  .g1{width:78vmax;height:60vmax;top:-26vmax;left:-18vmax;
+    background:radial-gradient(circle at 50% 50%, rgba(79,70,229,.30), transparent 62%);
+    animation:drift1 26s ease-in-out infinite}
+  .g2{width:64vmax;height:52vmax;top:-14vmax;right:-16vmax;
+    background:radial-gradient(circle at 50% 50%, rgba(14,165,233,.20), transparent 62%);
+    animation:drift2 34s ease-in-out infinite}
+  .g3{width:70vmax;height:58vmax;bottom:-30vmax;left:22%;
+    background:radial-gradient(circle at 50% 50%, rgba(147,51,234,.17), transparent 62%);
+    animation:drift3 42s ease-in-out infinite}
+  .g4{width:46vmax;height:40vmax;top:34%;left:38%;
+    background:radial-gradient(circle at 50% 50%, rgba(56,189,248,.11), transparent 60%);
+    animation:drift4 30s ease-in-out infinite}
+
+  @keyframes drift1{
+    0%,100%{transform:translate3d(0,0,0) scale(1)}
+    33%{transform:translate3d(7vw,4vh,0) scale(1.12)}
+    66%{transform:translate3d(-3vw,8vh,0) scale(.94)}}
+  @keyframes drift2{
+    0%,100%{transform:translate3d(0,0,0) scale(1)}
+    40%{transform:translate3d(-8vw,6vh,0) scale(1.15)}
+    70%{transform:translate3d(4vw,-3vh,0) scale(.92)}}
+  @keyframes drift3{
+    0%,100%{transform:translate3d(0,0,0) scale(1)}
+    45%{transform:translate3d(9vw,-7vh,0) scale(1.1)}
+    75%{transform:translate3d(-6vw,-2vh,0) scale(.96)}}
+  @keyframes drift4{
+    0%,100%{transform:translate3d(0,0,0) scale(.95);opacity:.7}
+    50%{transform:translate3d(-10vw,9vh,0) scale(1.2);opacity:1}}
   .wrap{max-width:var(--max);margin:0 auto;padding:0 24px;position:relative;z-index:1}
   a{color:var(--accent-lt);text-decoration:none}
   a:hover{color:#C7D2FE}
@@ -208,6 +240,7 @@
   html.js .rv{opacity:0;transform:translateY(22px)}
   html.js .rv.in{opacity:1;transform:none}
   @media(prefers-reduced-motion:reduce){
+    .glow span{animation:none}
     html.js .rv{opacity:1;transform:none;transition:none}
     html{scroll-behavior:auto}
     .btn:hover,.card:hover{transform:none}
@@ -215,7 +248,9 @@
 </style>
 </head>
 <body>
-<div class="glow"></div>
+<div class="glow" aria-hidden="true">
+  <span class="g1"></span><span class="g2"></span><span class="g3"></span><span class="g4"></span>
+</div>
 
 <nav>
   <div class="nav-in">
@@ -224,9 +259,8 @@
       <a href="#features">Features</a>
       <a href="#how">How it works</a>
       <a href="#faq">FAQ</a>
-      <a href="https://github.com/franklinalegu/playlistvault">GitHub</a>
     </div>
-    <a href="#download" class="btn btn-primary btn-sm">Download</a>
+    <a href="/download" class="btn btn-primary btn-sm">Download</a>
   </div>
 </nav>
 
@@ -238,13 +272,13 @@
     PlaylistVault archives the ones you have the right to keep — straight to your own drive.
   </p>
   <div class="cta">
-    <a href="#download" class="btn btn-primary">
+    <a href="/download" class="btn btn-primary" data-dl>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Download for Windows
     </a>
-    <a href="https://github.com/franklinalegu/playlistvault" class="btn btn-ghost">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2 0-.4-.5-1.6.2-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
-      View source
+    <a href="#features" class="btn btn-ghost">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      See what it does
     </a>
   </div>
   <p class="cta-note">Windows 10/11 · 95 MB · No account required</p>
@@ -366,11 +400,11 @@
   <p class="lede rv">Free, open source, and yours to keep.</p>
 
   <div class="cta rv" style="margin-bottom:34px">
-    <a href="https://github.com/franklinalegu/playlistvault/releases/latest" class="btn btn-primary">
+    <a href="/download" class="btn btn-primary" data-dl>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Download for Windows
     </a>
-    <a href="https://github.com/franklinalegu/playlistvault" class="btn btn-ghost">Browse the source</a>
+    <a href="#faq" class="btn btn-ghost">Read the FAQ</a>
   </div>
 
   <dl class="specs rv" style="max-width:860px;margin:0 auto 34px">
@@ -401,7 +435,7 @@
   <div class="faq" style="margin-top:44px">
     <details class="rv">
       <summary>Is it really free?</summary>
-      <p>Yes. Free, open source under the MIT licence, no paid tier and no upsell. The full source is on GitHub if you'd like to read or build it yourself.</p>
+      <p>Yes — completely free, with no paid tier, no trial and no upsell. It's released under the MIT licence.</p>
     </details>
     <details class="rv">
       <summary>Windows warns me the app is unsafe. Is it?</summary>
@@ -427,7 +461,7 @@
     </details>
     <details class="rv">
       <summary>Will it keep working as YouTube changes?</summary>
-      <p>Downloading is handled by <a href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a>, which is actively maintained and updates frequently. If downloads start failing after a few months, drop the latest <code>yt-dlp.exe</code> into the app's <code>bin</code> folder — it takes priority over the bundled copy.</p>
+      <p>Downloading is handled by <a href="https://github.com/yt-dlp/yt-dlp" rel="noopener">yt-dlp</a>, an actively maintained open-source project that updates frequently. If downloads start failing after a few months, drop the latest <code>yt-dlp.exe</code> into the app's <code>bin</code> folder — it takes priority over the bundled copy.</p>
     </details>
   </div>
 </section>
@@ -436,9 +470,8 @@
   <div class="wrap foot">
     <div>© 2026 PlaylistVault · Built by Franklin Alegu (FA)</div>
     <div style="display:flex;gap:22px">
-      <a href="https://github.com/franklinalegu/playlistvault">GitHub</a>
-      <a href="https://github.com/franklinalegu/playlistvault/releases">Releases</a>
-      <a href="https://github.com/franklinalegu/playlistvault/issues">Report an issue</a>
+      <a href="#faq">FAQ</a>
+      <a href="mailto:support@playlistvault.app">Contact</a>
     </div>
   </div>
 </footer>

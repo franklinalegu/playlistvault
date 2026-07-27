@@ -6,6 +6,18 @@
   "framework": null,
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/download",
+      "destination": "https://github.com/franklinalegu/playlistvault/releases/download/v2.0.2/PlaylistVault-2.0.2-x64.exe",
+      "permanent": false
+    },
+    {
+      "source": "/download/latest",
+      "destination": "/download",
+      "permanent": false
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
