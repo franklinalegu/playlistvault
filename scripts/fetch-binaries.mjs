@@ -21,6 +21,15 @@ const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const BIN_DIR = path.join(ROOT, 'resources', 'bin');
 const FORCE = process.argv.includes('--force');
+
+/**
+ * Skip the FFmpeg download.
+ *
+ * Release builds ship yt-dlp only and fetch FFmpeg on first run, which keeps
+ * the installer at ~95 MB instead of ~144 MB. Local development still wants
+ * both, so this is opt-in via `--no-ffmpeg`.
+ */
+const SKIP_FFMPEG = process.argv.includes('--no-ffmpeg');
 const isWindows = process.platform === 'win32';
 
 const YTDLP_URL = isWindows
@@ -35,7 +44,9 @@ async function main() {
   console.log(`→ Target: ${BIN_DIR}\n`);
 
   await fetchYtDlp();
-  if (isWindows) {
+  if (SKIP_FFMPEG) {
+    console.log('• FFmpeg: skipped (--no-ffmpeg). The app downloads it on first run.');
+  } else if (isWindows) {
     await fetchFfmpegWindows();
   } else {
     console.log('• FFmpeg: skipping automatic download on this platform.');

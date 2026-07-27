@@ -1,0 +1,86 @@
+name: Release
+
+# Builds the Windows installer on a real Windows runner and publishes it as a
+# GitHub Release. Triggered by pushing a version tag:
+#
+#   npm version patch      # bumps package.json and creates the tag
+#   git push --follow-tags
+#
+# Can also be run manually from the Actions tab to produce a draft.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. 2.0.1). Defaults to package.json.'
+        required: false
+
+permissions:
+  contents: write # required to create the release and upload assets
+
+jobs:
+  build-windows:
+    name: Build Windows installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Fail fast: never publish a release that doesn't typecheck or pass tests.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # yt-dlp only. FFmpeg is fetched by the app on first run, which keeps the
+      # installer near 95 MB instead of ~144 MB.
+      - name: Fetch bundled yt-dlp
+        run: node scripts/fetch-binaries.mjs --no-ffmpeg
+
+      - name: Verify the tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $pkg = (Get-Content package.json | ConvertFrom-Json).version
+          $tag = "${{ github.ref_name }}" -replace '^v', ''
+          if ($pkg -ne $tag) {
+            Write-Error "Tag v$tag does not match package.json version $pkg. Bump the version and re-tag."
+            exit 1
+          }
+          Write-Host "Version check passed: $pkg"
+
+      - name: Build and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Publish only for real tags; manual runs produce artifacts only.
+          EP_DRAFT: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: npx electron-builder --win nsis --x64 --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+
+      - name: Show what was produced
+        shell: pwsh
+        run: Get-ChildItem release -Recurse -Include *.exe, *.yml, *.blockmap | Select-Object Name, Length
+
+      # Keep the build even when not publishing, so manual runs are still useful.
+      - name: Upload installer as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlaylistVault-windows-installer
+          path: |
+            release/**/*.exe
+            release/**/latest.yml
+            release/**/*.blockmap
+          retention-days: 14
+          if-no-files-found: error

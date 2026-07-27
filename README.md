@@ -64,7 +64,7 @@ The installer lets the user choose the install directory, creates desktop and St
 | `npm test` | Run the Vitest suite (45 tests) |
 | `npm run test:watch` | Vitest in watch mode |
 | `npm run lint` | ESLint over `.ts` / `.tsx` |
-| `npm run fetch:binaries` | Download yt-dlp + FFmpeg |
+| `npm run fetch:binaries` | Download yt-dlp + FFmpeg (add `--no-ffmpeg` for yt-dlp only) |
 | `npm run dist` | Package the Windows installer and portable build |
 
 ---
@@ -132,6 +132,16 @@ Beyond the unit suite, the pipeline was verified end-to-end against live YouTube
 **Nothing happens on a `/watch?v=…&list=…` link** — That's treated as a playlist by design. Strip the `list=` parameter to download the single video.
 
 ---
+
+## Releasing
+
+Tagged pushes build and publish the Windows installer automatically via GitHub Actions:
+
+```bash
+npm version patch && git push --follow-tags
+```
+
+See [RELEASING.md](RELEASING.md) for the full process, test builds, and code-signing setup.
 
 ## Licence
 

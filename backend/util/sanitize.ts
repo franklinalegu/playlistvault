@@ -1,6 +1,12 @@
 import path from 'node:path';
 
-/** Characters Windows forbids in file names, plus control characters. */
+/**
+ * Characters Windows forbids in file names, plus control characters.
+ *
+ * The control-character range is intentional: scraped video titles can contain
+ * newlines and NUL bytes, and stripping them is the whole point of this regex.
+ */
+// eslint-disable-next-line no-control-regex
 const ILLEGAL_CHARS = /[<>:"/\\|?*\u0000-\u001F]/g;
 
 /** Device names Windows reserves regardless of extension. */
