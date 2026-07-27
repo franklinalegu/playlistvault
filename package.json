@@ -113,7 +113,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "playlistvault",
+        "owner": "franklinalegu",
         "repo": "playlistvault"
       }
     ]
