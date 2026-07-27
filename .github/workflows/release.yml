@@ -94,6 +94,32 @@ jobs:
           }
 
       # Keep the build even when not publishing, so manual runs are still useful.
+      # Publish to Cloudflare R2 so downloads keep working when the repo goes
+      # private. Skipped automatically if the secrets are absent, so the build
+      # never breaks for anyone who hasn't configured R2.
+      - name: Upload installer to Cloudflare R2
+        if: startsWith(github.ref, 'refs/tags/v') && env.R2_ACCESS_KEY_ID != ''
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem release -Recurse -Filter *.exe |
+                 Where-Object { $_.Name -notmatch 'portable' } |
+                 Select-Object -First 1
+          if (-not $exe) { Write-Error 'No installer found to upload'; exit 1 }
+
+          # latest.yml drives the in-app updater, so it must ship alongside.
+          $yml = Get-ChildItem release -Recurse -Filter latest.yml | Select-Object -First 1
+
+          pip install --quiet --disable-pip-version-check boto3
+          $env:UPLOAD_EXE = $exe.FullName
+          $env:UPLOAD_YML = if ($yml) { $yml.FullName } else { '' }
+          $env:UPLOAD_VERSION = '${{ github.ref_name }}'
+          python scripts/upload-r2.py
+
       - name: Upload installer as a workflow artifact
         uses: actions/upload-artifact@v4
         with:

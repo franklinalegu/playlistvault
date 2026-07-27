@@ -77,7 +77,8 @@
   @keyframes drift4{
     0%,100%{transform:translate3d(0,0,0) scale(.95);opacity:.7}
     50%{transform:translate3d(-10vw,9vh,0) scale(1.2);opacity:1}}
-  .wrap{max-width:var(--max);margin:0 auto;padding:0 24px;position:relative;z-index:1}
+  .wrap{max-width:var(--max);margin:0 auto;padding-left:24px;padding-right:24px;
+    position:relative;z-index:1}
   a{color:var(--accent-lt);text-decoration:none}
   a:hover{color:#C7D2FE}
 
@@ -129,7 +130,6 @@
     .shot{margin-top:38px;border-radius:12px}
     .shot img,.shot video{border-radius:12px}
     header.hero{padding:56px 0 40px}
-    section{padding:64px 0}
     .card{padding:22px}
   }
   .shot::after{content:"";position:absolute;inset:auto 8% -30px 8%;height:60px;
@@ -138,6 +138,7 @@
 
   /* ---------- sections ---------- */
   section{padding:88px 0}
+  @media(max-width:640px){ section{padding:60px 0} }
   .eyebrow{text-align:center;font-size:12.5px;font-weight:700;letter-spacing:.13em;
     text-transform:uppercase;color:var(--accent-lt);margin-bottom:14px}
   h2{font-size:clamp(1.7rem,3.6vw,2.5rem);text-align:center;letter-spacing:-.03em;
