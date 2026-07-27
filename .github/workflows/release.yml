@@ -50,6 +50,12 @@ jobs:
       - name: Fetch bundled yt-dlp
         run: node scripts/fetch-binaries.mjs --no-ffmpeg
 
+      # electron-builder only packages what already exists: its `files` config
+      # points at dist/ and dist-electron/, both gitignored. Without this step
+      # they are absent on a fresh checkout and the build fails immediately.
+      - name: Build renderer, main and preload
+        run: npx vite build
+
       - name: Verify the tag matches package.json
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
