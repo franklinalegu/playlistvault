@@ -82,13 +82,16 @@ const api = {
     info: (): Promise<ApiResult<AppInfo>> => ipcRenderer.invoke(IPC.appInfo),
     checkBinaries: (): Promise<ApiResult<BinaryStatus[]>> =>
       ipcRenderer.invoke(IPC.appCheckBinaries),
+    testAuth: (): Promise<ApiResult<string>> => ipcRenderer.invoke(IPC.authTest),
     installDependency: (name: DependencyName): Promise<ApiResult<string>> =>
       ipcRenderer.invoke(IPC.appInstallDependency, name),
     openLog: (): Promise<ApiResult<boolean>> => ipcRenderer.invoke(IPC.appOpenLog),
     onDependencyProgress: (cb: (p: DependencyProgress) => void): (() => void) =>
       subscribe(IPC.appDependencyProgress, cb),
     onClipboardUrl: (cb: (url: string) => void): (() => void) =>
-      subscribe(IPC.clipboardUrlDetected, cb)
+      subscribe(IPC.clipboardUrlDetected, cb),
+    onProtocolUrl: (cb: (url: string) => void): (() => void) =>
+      subscribe(IPC.protocolUrlDetected, cb)
   },
 
   updates: {

@@ -18,6 +18,7 @@ export type VideoQuality =
 
 export type VideoContainer = 'mp4' | 'mkv' | 'webm';
 export type AudioFormat = 'mp3' | 'm4a' | 'opus' | 'flac' | 'wav';
+export type BrowserCookieSource = 'none' | 'chrome' | 'edge' | 'firefox';
 
 export type DownloadStatus =
   | 'queued'
@@ -169,6 +170,7 @@ export interface AppSettings {
   ytDlpPath?: string;
   ffmpegPath?: string;
   legalAcknowledged: boolean;
+  browserCookieSource: BrowserCookieSource;
 }
 
 export type DependencyName = 'yt-dlp' | 'ffmpeg';
@@ -212,6 +214,7 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string; c
 export interface AnalyzeRequest {
   url: string;
   quality: VideoQuality;
+  browserCookieSource?: BrowserCookieSource;
 }
 
 export interface StartJobRequest {
@@ -258,11 +261,13 @@ export const IPC = {
   appInstallDependency: 'app:install-dependency',
   appOpenLog: 'app:open-log',
   appDependencyProgress: 'app:dependency-progress',
+  authTest: 'auth:test',
   updateCheck: 'update:check',
   updateInstall: 'update:install',
   updateState: 'update:state',
 
-  clipboardUrlDetected: 'clipboard:url-detected'
+  clipboardUrlDetected: 'clipboard:url-detected',
+  protocolUrlDetected: 'protocol:url-detected'
 } as const;
 
 export const DEFAULT_DOWNLOAD_OPTIONS: DownloadOptions = {

@@ -19,7 +19,8 @@ export function createDefaultSettings(downloadsDir: string): AppSettings {
     confirmBeforeQuit: true,
     keepHistoryDays: 365,
     recentDestinations: [],
-    legalAcknowledged: false
+    legalAcknowledged: false,
+    browserCookieSource: 'none'
   };
 }
 
@@ -47,8 +48,9 @@ export class SettingsService {
     const needsOptions =
       Object.keys(mergedOptions).length !== Object.keys(current.defaultOptions ?? {}).length;
     const needsRecents = !Array.isArray(current.recentDestinations);
+    const needsCookieSource = !['none', 'chrome', 'edge', 'firefox'].includes(current.browserCookieSource);
 
-    if (!needsOptions && !needsRecents) return;
+    if (!needsOptions && !needsRecents && !needsCookieSource) return;
 
     await this.store.write({
       ...defaults,
@@ -56,7 +58,8 @@ export class SettingsService {
       defaultOptions: mergedOptions,
       recentDestinations: Array.isArray(current.recentDestinations)
         ? current.recentDestinations
-        : []
+        : [],
+      browserCookieSource: needsCookieSource ? defaults.browserCookieSource : current.browserCookieSource
     });
   }
 
@@ -98,6 +101,9 @@ export class SettingsService {
     ).slice(0, 6);
     if (!/^#[0-9a-fA-F]{6}$/.test(next.accentColor)) {
       next.accentColor = previous.accentColor;
+    }
+    if (!['none', 'chrome', 'edge', 'firefox'].includes(next.browserCookieSource)) {
+      next.browserCookieSource = previous.browserCookieSource;
     }
     return next;
   }

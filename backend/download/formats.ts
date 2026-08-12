@@ -1,4 +1,5 @@
-import type { DownloadOptions, VideoQuality } from '@shared/types';
+import type { BrowserCookieSource, DownloadOptions, VideoQuality } from '@shared/types';
+import { resolveJavaScriptRuntime } from '../ffmpeg/binaries.js';
 
 const HEIGHT_BY_QUALITY: Record<Exclude<VideoQuality, 'best' | 'audio-only'>, number> = {
   '2160p': 2160,
@@ -46,8 +47,9 @@ export function buildDownloadArgs(params: {
   outputTemplate: string;
   options: DownloadOptions;
   ffmpegPath: string;
+  browserCookieSource?: BrowserCookieSource;
 }): string[] {
-  const { url, outputTemplate, options, ffmpegPath } = params;
+  const { url, outputTemplate, options, ffmpegPath, browserCookieSource = 'none' } = params;
 
   const args: string[] = [
     '--no-playlist',
@@ -65,6 +67,9 @@ export function buildDownloadArgs(params: {
     '--output', outputTemplate,
     '--format', buildFormatSelector(options)
   ];
+
+  addYouTubeRuntimeArgs(args);
+  if (browserCookieSource !== 'none') args.push('--cookies-from-browser', browserCookieSource);
 
   if (options.rateLimitKbps && options.rateLimitKbps > 0) {
     args.push('--limit-rate', `${options.rateLimitKbps}K`);
@@ -100,8 +105,8 @@ export function buildDownloadArgs(params: {
 }
 
 /** Argv for dumping playlist metadata as newline-delimited JSON. */
-export function buildAnalyzeArgs(url: string): string[] {
-  return [
+export function buildAnalyzeArgs(url: string, browserCookieSource: BrowserCookieSource = 'none'): string[] {
+  const args = [
     '--dump-single-json',
     '--flat-playlist',
     '--ignore-config',
@@ -109,6 +114,27 @@ export function buildAnalyzeArgs(url: string): string[] {
     '--no-colors',
     '--socket-timeout', '30',
     '--retries', '3',
-    url
   ];
+  addYouTubeRuntimeArgs(args);
+  if (browserCookieSource !== 'none') args.push('--cookies-from-browser', browserCookieSource);
+  args.push(url);
+  return args;
+}
+
+export function buildFormatProbeArgs(
+  url: string,
+  browserCookieSource: BrowserCookieSource = 'none'
+): string[] {
+  const args = [
+    '--list-formats', '--no-playlist', '--ignore-config', '--no-warnings', '--no-colors',
+    '--socket-timeout', '30', '--retries', '1'
+  ];
+  addYouTubeRuntimeArgs(args);
+  if (browserCookieSource !== 'none') args.push('--cookies-from-browser', browserCookieSource);
+  args.push(url);
+  return args;
+}
+
+function addYouTubeRuntimeArgs(args: string[]): void {
+  args.push('--js-runtimes', `node:${resolveJavaScriptRuntime().node}`, '--remote-components', 'ejs:github');
 }

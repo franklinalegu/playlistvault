@@ -17,6 +17,7 @@ export function Settings(): JSX.Element {
   const { success, error } = useToast();
   const [binaries, setBinaries] = useState<BinaryStatus[]>([]);
   const [checking, setChecking] = useState(false);
+  const [testingAuth, setTestingAuth] = useState(false);
 
   const checkBinaries = async (): Promise<void> => {
     setChecking(true);
@@ -191,6 +192,40 @@ export function Settings(): JSX.Element {
               checked={settings.confirmBeforeQuit}
               onChange={(confirmBeforeQuit) => void update({ confirmBeforeQuit })}
             />
+          </div>
+        </Section>
+
+        <Section title="YouTube sign-in">
+          <p className="mb-3 text-xs leading-relaxed text-slate-500">
+            YouTube may require a browser session. PlaylistVault reads it locally and never uploads
+            or stores cookies. Close the selected browser before testing.
+          </p>
+          <div className="flex items-end gap-2">
+            <Select
+              label="Use cookies from"
+              value={settings.browserCookieSource}
+              onChange={(browserCookieSource) => void update({ browserCookieSource })}
+              options={[
+                { value: 'none', label: 'No browser session' },
+                { value: 'chrome', label: 'Google Chrome' },
+                { value: 'edge', label: 'Microsoft Edge' },
+                { value: 'firefox', label: 'Mozilla Firefox' }
+              ]}
+            />
+            <button
+              type="button"
+              className="btn-ghost shrink-0"
+              disabled={testingAuth || settings.browserCookieSource === 'none'}
+              onClick={async () => {
+                setTestingAuth(true);
+                const result = await window.vault.system.testAuth();
+                setTestingAuth(false);
+                if (result.ok) success('YouTube session verified', result.data);
+                else error('YouTube session failed', result.error);
+              }}
+            >
+              {testingAuth ? 'Testing…' : 'Test session'}
+            </button>
           </div>
         </Section>
 

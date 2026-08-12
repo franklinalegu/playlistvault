@@ -31,7 +31,8 @@ const FALLBACK: AppSettings = {
   confirmBeforeQuit: true,
   keepHistoryDays: 365,
   recentDestinations: [],
-  legalAcknowledged: false
+  legalAcknowledged: false,
+  browserCookieSource: 'none'
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);

@@ -67,6 +67,7 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
+      "browser-extension/**/*",
       "!**/*.map"
     ],
     "extraResources": [
@@ -78,6 +79,7 @@
         ]
       }
     ],
+    "protocols": [{ "name": "PlaylistVault link", "schemes": ["playlistvault"] }],
     "win": {
       "legalTrademarks": "Franklin Alegu (FA)",
       "target": [

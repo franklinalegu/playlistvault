@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "PlaylistVault: Download locally",
+  "description": "Send the current YouTube page to the local PlaylistVault desktop app.",
+  "version": "1.0.0",
+  "permissions": ["activeTab", "contextMenus"],
+  "action": { "default_title": "Download with PlaylistVault" },
+  "background": { "service_worker": "background.js" }
+}

@@ -13,6 +13,8 @@ export interface BinaryPaths {
   ffprobe: string;
 }
 
+export interface RuntimePaths { node: string; }
+
 let cached: BinaryPaths | null = null;
 let overrides: Partial<BinaryPaths> = {};
 let userDataDir: string | null = null;
@@ -73,6 +75,27 @@ function findOnDisk(base: string): string | undefined {
     }
   }
   return undefined;
+}
+
+function findNodeRuntime(): string {
+  const candidates = process.platform === 'win32'
+    ? [
+        ...(process.resourcesPath ? [path.join(process.resourcesPath, 'bin', 'node.exe')] : []),
+        path.resolve(process.cwd(), 'resources', 'bin', 'node.exe'),
+        path.join(process.env.ProgramFiles ?? 'C:\\Program Files', 'nodejs', 'node.exe'),
+        path.join(process.env.LOCALAPPDATA ?? '', 'Programs', 'nodejs', 'node.exe')
+      ]
+    : ['/usr/local/bin/node', '/usr/bin/node', '/opt/homebrew/bin/node'];
+  for (const candidate of candidates) {
+    try {
+      if (candidate && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
+    } catch { /* keep searching */ }
+  }
+  return process.platform === 'win32' ? 'node.exe' : 'node';
+}
+
+export function resolveJavaScriptRuntime(): RuntimePaths {
+  return { node: findNodeRuntime() };
 }
 
 /**

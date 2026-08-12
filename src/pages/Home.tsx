@@ -75,6 +75,13 @@ export function Home(): JSX.Element {
     });
   }, [settings.clipboardMonitoring, toast, url, runAnalysis]);
 
+  useEffect(() => {
+    return window.vault.system.onProtocolUrl((detected) => {
+      setUrl(detected);
+      void runAnalysis(detected);
+    });
+  }, [runAnalysis]);
+
   // Drag and drop a link straight onto the window.
   useEffect(() => {
     const onDrop = (e: DragEvent): void => {

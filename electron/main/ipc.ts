@@ -21,6 +21,8 @@ import { log } from '@backend/util/logger.js';
 import { installDependency } from '@backend/setup/dependencyInstaller.js';
 import { isSafeDestination } from '@backend/util/sanitize.js';
 import { checkForUpdates, installUpdate } from './updater.js';
+import { buildFormatProbeArgs } from '@backend/download/formats.js';
+import { runYtDlpCollect } from '@backend/download/ytdlp.js';
 
 /** Injected by Vite from package.json at build time. */
 declare const APP_VERSION: string | undefined;
@@ -63,7 +65,7 @@ export function registerIpcHandlers(deps: Deps): void {
 
   handle<PlaylistInfo>(IPC.playlistAnalyze, async (req: AnalyzeRequest) => {
     activeAnalysis?.cancel();
-    const handleRef = analyzePlaylist(req.url, req.quality);
+    const handleRef = analyzePlaylist(req.url, req.quality, settings.get().browserCookieSource);
     activeAnalysis = handleRef;
     try {
       return await handleRef.promise;
@@ -161,6 +163,7 @@ export function registerIpcHandlers(deps: Deps): void {
   handle<AppSettings>(IPC.settingsUpdate, async (patch: Partial<AppSettings>) => {
     const next = await settings.update(patch);
     downloads.setMaxConcurrentJobs(next.maxConcurrentJobs);
+    downloads.setBrowserCookieSource(next.browserCookieSource);
     nativeTheme.themeSource = next.theme;
     return next;
   });
@@ -168,6 +171,7 @@ export function registerIpcHandlers(deps: Deps): void {
   handle<AppSettings>(IPC.settingsReset, async () => {
     const next = await settings.reset();
     downloads.setMaxConcurrentJobs(next.maxConcurrentJobs);
+    downloads.setBrowserCookieSource(next.browserCookieSource);
     nativeTheme.themeSource = next.theme;
     return next;
   });
@@ -226,6 +230,19 @@ export function registerIpcHandlers(deps: Deps): void {
   }));
 
   handle(IPC.appCheckBinaries, () => checkBinaries());
+
+  handle<string>(IPC.authTest, async () => {
+    const source = settings.get().browserCookieSource;
+    if (source === 'none') throw new Error('Choose a browser in Settings first.');
+    const { promise } = runYtDlpCollect(
+      buildFormatProbeArgs('https://www.youtube.com/watch?v=dQw4w9WgXcQ', source)
+    );
+    const output = await promise;
+    if (!/^\s*\d+\s+(mp4|webm|m4a|mp3|opus|mov)\s+/im.test(output)) {
+      throw new Error('The browser session loaded, but YouTube exposed no playable media formats.');
+    }
+    return `Browser session accepted: ${source}`;
+  });
 
   handle<boolean>(IPC.appOpenLog, async () => {
     const target = log.getPath();

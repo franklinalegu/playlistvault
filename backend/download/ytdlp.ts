@@ -120,7 +120,10 @@ export function humanizeYtDlpError(stderr: string, code: number | null): string 
     return 'This content is age-restricted and requires a signed-in session.';
   }
   if (text.includes('sign in to confirm') || text.includes('not a bot')) {
-    return 'YouTube asked for verification. Try again shortly, or update yt-dlp.';
+    return 'Browser sign-in required. In Settings, choose the browser where you are signed in, then retry.';
+  }
+  if (text.includes('signature solving failed') || text.includes('n challenge solving failed') || text.includes('only images are available')) {
+    return 'YouTube signature verification could not run. Install Node.js 18+ or use a build with the bundled JavaScript runtime, then retry.';
   }
   if (text.includes('http error 429') || text.includes('too many requests')) {
     return 'YouTube is rate-limiting this connection. Wait a few minutes and retry.';

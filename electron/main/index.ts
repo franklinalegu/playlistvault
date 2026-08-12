@@ -9,6 +9,8 @@ import { DownloadManager } from '@backend/download/downloadManager.js';
 import { registerIpcHandlers } from './ipc.js';
 import { setupAutoUpdater } from './updater.js';
 import { startClipboardWatcher } from './clipboard.js';
+import { IPC } from '@shared/types';
+import { parseYouTubeUrl } from '@backend/util/sanitize.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,6 +27,18 @@ if (!app.requestSingleInstanceLock()) {
 
 let mainWindow: BrowserWindow | null = null;
 let downloadManager: DownloadManager | null = null;
+let pendingProtocolUrl: string | null = process.argv.find((arg) => arg.startsWith('playlistvault://')) ?? null;
+
+function acceptProtocolUrl(raw: string): void {
+  if (!raw.startsWith('playlistvault://')) return;
+  let target: string | undefined;
+  try { target = new URL(raw).searchParams.get('url') ?? undefined; } catch { return; }
+  const parsed = target ? parseYouTubeUrl(target) : null;
+  if (!parsed?.valid || !parsed.normalized || !mainWindow || mainWindow.isDestroyed()) return;
+  pendingProtocolUrl = null;
+  mainWindow.webContents.send(IPC.protocolUrlDetected, parsed.normalized);
+  mainWindow.focus();
+}
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -76,6 +90,11 @@ function createWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
   app.setAppUserModelId('app.playlistvault.desktop');
+  if (process.defaultApp) {
+    app.setAsDefaultProtocolClient('playlistvault', process.execPath, [path.resolve(process.argv[1] ?? '')]);
+  } else {
+    app.setAsDefaultProtocolClient('playlistvault');
+  }
 
   const userData = app.getPath('userData');
   // Tools installed at first run live under userData/bin.
@@ -91,6 +110,7 @@ app.whenReady().then(() => {
   const history = new HistoryService(userData);
   downloadManager = new DownloadManager();
   downloadManager.setMaxConcurrentJobs(settings.get().maxConcurrentJobs);
+  downloadManager.setBrowserCookieSource(settings.get().browserCookieSource);
 
   void history.prune(settings.get().keepHistoryDays);
 
@@ -98,6 +118,10 @@ app.whenReady().then(() => {
   nativeTheme.themeSource = current.theme;
 
   mainWindow = createWindow();
+  if (pendingProtocolUrl) {
+    const incoming = pendingProtocolUrl;
+    mainWindow.webContents.once('did-finish-load', () => acceptProtocolUrl(incoming));
+  }
 
   registerIpcHandlers({
     getWindow: () => mainWindow,
@@ -114,7 +138,9 @@ app.whenReady().then(() => {
   });
 });
 
-app.on('second-instance', () => {
+app.on('second-instance', (_event, commandLine) => {
+  const incoming = commandLine.find((arg) => arg.startsWith('playlistvault://'));
+  if (incoming) acceptProtocolUrl(incoming);
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
