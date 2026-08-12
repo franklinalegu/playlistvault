@@ -154,14 +154,15 @@ async function fetchFfmpegMac() {
   }
 
   const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'playlistvault-ffmpeg-'));
-  const zipPath = path.join(tmpDir, 'ffmpeg.zip');
   try {
-    console.log('• FFmpeg: downloading macOS build…');
-    await download('https://evermeet.cx/ffmpeg/getrelease/zip', zipPath);
-    const zip = new (await import('adm-zip')).default(zipPath);
+    console.log('• FFmpeg: downloading macOS builds…');
+    const AdmZip = (await import('adm-zip')).default;
     for (const name of targets) {
+      const zipPath = path.join(tmpDir, `${name}.zip`);
+      await download(`https://evermeet.cx/ffmpeg/getrelease/${name}/zip`, zipPath);
+      const zip = new AdmZip(zipPath);
       const entry = zip.getEntries().find((item) => path.basename(item.entryName) === name);
-      if (!entry) throw new Error(`${name} was not found inside the macOS FFmpeg archive`);
+      if (!entry) throw new Error(`${name} was not found inside the macOS archive`);
       const target = path.join(BIN_DIR, name);
       await fsp.writeFile(target, entry.getData());
       await fsp.chmod(target, 0o755);
@@ -187,9 +188,24 @@ function findFile(dir, filename) {
 
 async function download(url, target, redirects = 0) {
   if (redirects > 6) throw new Error('Too many redirects');
-  const res = await fetch(url, { redirect: 'follow' });
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
-  await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(target));
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const res = await fetch(url, {
+        redirect: 'follow',
+        headers: { 'User-Agent': 'PlaylistVault build fetcher' },
+        signal: AbortSignal.timeout(120_000)
+      });
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status} fetching ${url}`);
+      await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(target));
+      return;
+    } catch (error) {
+      lastError = error;
+      await fsp.rm(target, { force: true });
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 2_000));
+    }
+  }
+  throw lastError;
 }
 
 main().catch((error) => {
