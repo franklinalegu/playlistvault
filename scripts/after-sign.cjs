@@ -50,7 +50,7 @@ function findRcedit() {
 }
 
 exports.default = async function afterSign(context) {
-  if (context.electronPlatformName !== 'win32') return;
+  if (context.electronPlatformName !== 'win32' || process.platform !== 'win32') return;
 
   const exePath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.exe`);
   if (!fs.existsSync(exePath)) {
