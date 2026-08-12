@@ -652,6 +652,8 @@ function describeDestinationError(error: unknown, destination: string): string {
       return 'That folder path is too long for Windows. Pick a shorter path.';
     case 'EBUSY':
       return `${where} is busy or locked by another program.`;
+    case 'ENOTDIR':
+      return `The destination path contains a file where a folder is required. Pick a different folder.`;
     default:
       return `Could not write to "${destination}"${code ? ` (${code})` : ''}. Pick a different folder.`;
   }

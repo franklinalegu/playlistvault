@@ -17,6 +17,7 @@ const YTDLP_URL_NIX = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download
  */
 const FFMPEG_ZIP_WIN =
   'https://github.com/GyanD/codexffmpeg/releases/download/7.1/ffmpeg-7.1-essentials_build.zip';
+const FFMPEG_ZIP_MAC = 'https://evermeet.cx/ffmpeg/getrelease/zip';
 
 export type ProgressReporter = (progress: DependencyProgress) => void;
 
@@ -66,9 +67,9 @@ async function installYtDlp(binDir: string, report: ProgressReporter): Promise<s
 }
 
 async function installFfmpeg(binDir: string, report: ProgressReporter): Promise<string> {
-  if (process.platform !== 'win32') {
+  if (process.platform !== 'win32' && process.platform !== 'darwin') {
     throw new Error(
-      'Automatic FFmpeg install is only supported on Windows. Install it with your package manager instead.'
+      'Automatic FFmpeg install is only supported on Windows and macOS. Install it with your package manager instead.'
     );
   }
 
@@ -77,14 +78,15 @@ async function installFfmpeg(binDir: string, report: ProgressReporter): Promise<
 
   try {
     report({ name: 'ffmpeg', stage: 'downloading', percent: 0, message: 'Contacting server…' });
-    await download(FFMPEG_ZIP_WIN, zipPath, (percent, detail) =>
+    await download(process.platform === 'darwin' ? FFMPEG_ZIP_MAC : FFMPEG_ZIP_WIN, zipPath, (percent, detail) =>
       report({ name: 'ffmpeg', stage: 'downloading', percent, message: detail })
     );
 
     report({ name: 'ffmpeg', stage: 'extracting', percent: 100, message: 'Extracting…' });
 
     const zip = new AdmZip(zipPath);
-    const wanted = ['ffmpeg.exe', 'ffprobe.exe'];
+    const suffix = process.platform === 'win32' ? '.exe' : '';
+    const wanted = [`ffmpeg${suffix}`, `ffprobe${suffix}`];
     let extracted = 0;
 
     for (const entry of zip.getEntries()) {
@@ -94,6 +96,7 @@ async function installFfmpeg(binDir: string, report: ProgressReporter): Promise<
       const tmpOut = path.join(tmpDir, base);
       await fsp.writeFile(tmpOut, entry.getData());
       await replaceFile(tmpOut, path.join(binDir, base));
+      if (process.platform !== 'win32') await fsp.chmod(path.join(binDir, base), 0o755);
       extracted += 1;
     }
 
@@ -101,7 +104,7 @@ async function installFfmpeg(binDir: string, report: ProgressReporter): Promise<
       throw new Error('The FFmpeg archive did not contain the expected programs.');
     }
 
-    return path.join(binDir, 'ffmpeg.exe');
+    return path.join(binDir, `ffmpeg${suffix}`);
   } finally {
     await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
   }

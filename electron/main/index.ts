@@ -31,6 +31,7 @@ let pendingProtocolUrl: string | null = process.argv.find((arg) => arg.startsWit
 
 function acceptProtocolUrl(raw: string): void {
   if (!raw.startsWith('playlistvault://')) return;
+  pendingProtocolUrl = raw;
   let target: string | undefined;
   try { target = new URL(raw).searchParams.get('url') ?? undefined; } catch { return; }
   const parsed = target ? parseYouTubeUrl(target) : null;
@@ -39,6 +40,11 @@ function acceptProtocolUrl(raw: string): void {
   mainWindow.webContents.send(IPC.protocolUrlDetected, parsed.normalized);
   mainWindow.focus();
 }
+
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  acceptProtocolUrl(url);
+});
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({

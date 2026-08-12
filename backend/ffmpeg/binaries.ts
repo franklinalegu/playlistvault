@@ -78,14 +78,16 @@ function findOnDisk(base: string): string | undefined {
 }
 
 function findNodeRuntime(): string {
+  const bundled = process.resourcesPath
+    ? [path.join(process.resourcesPath, 'bin', exeName('node'))]
+    : [path.resolve(process.cwd(), 'resources', 'bin', exeName('node'))];
   const candidates = process.platform === 'win32'
     ? [
-        ...(process.resourcesPath ? [path.join(process.resourcesPath, 'bin', 'node.exe')] : []),
-        path.resolve(process.cwd(), 'resources', 'bin', 'node.exe'),
+        ...bundled,
         path.join(process.env.ProgramFiles ?? 'C:\\Program Files', 'nodejs', 'node.exe'),
         path.join(process.env.LOCALAPPDATA ?? '', 'Programs', 'nodejs', 'node.exe')
       ]
-    : ['/usr/local/bin/node', '/usr/bin/node', '/opt/homebrew/bin/node'];
+    : [...bundled, '/usr/local/bin/node', '/usr/bin/node', '/opt/homebrew/bin/node'];
   for (const candidate of candidates) {
     try {
       if (candidate && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;

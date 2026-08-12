@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PlaylistVault — Save YouTube playlists for offline viewing</title>
-<meta name="description" content="A local-first Windows app that archives YouTube playlists offline. Parallel downloads, smart file naming, and a clickable index of every source link. No accounts, no telemetry, no cloud.">
+<meta name="description" content="A local-first Windows and macOS app that archives YouTube playlists offline. Parallel downloads, smart file naming, and a clickable index of every source link. No accounts, no telemetry, no cloud.">
 
 <meta property="og:title" content="PlaylistVault — Your playlists. Offline. Forever.">
 <meta property="og:description" content="Archive YouTube playlists to your own drive. Free, open source, and runs entirely on your machine.">
@@ -21,6 +21,9 @@
   }
 </script>
 <link rel="icon" type="image/png" href="assets/icon.png">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+<link rel="shortcut icon" href="assets/icon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
 <link rel="preload" as="image" href="assets/shot-home.jpg" fetchpriority="high">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -97,8 +100,8 @@
   a:hover{color:#C7D2FE}
 
   /* ---------- nav ---------- */
-  nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
-    background:rgba(8,10,18,.72);border-bottom:1px solid var(--line)}
+  nav{position:sticky;top:0;z-index:50;background:rgba(8,10,18,.96);
+     border-bottom:1px solid var(--line)}
   .nav-in{display:flex;align-items:center;gap:14px;height:64px;
     max-width:var(--max);margin:0 auto;padding:0 24px}
   .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:-.02em;
@@ -147,10 +150,6 @@
     header.hero{padding:56px 0 40px}
     .card{padding:22px}
   }
-  .shot::after{content:"";position:absolute;inset:auto 8% -30px 8%;height:60px;
-    background:radial-gradient(ellipse,rgba(79,70,229,.30),transparent 70%);
-    filter:blur(28px);z-index:-1}
-
   /* ---------- sections ---------- */
   section{padding:88px 0}
   @media(max-width:640px){ section{padding:60px 0} }
@@ -234,6 +233,40 @@
     color:var(--dimmer);margin-bottom:7px;font-weight:600}
   .spec dd{font-size:15.5px;font-weight:600}
 
+  /* ---------- downloads ---------- */
+  .download-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;
+    max-width:860px;margin:0 auto 34px;text-align:left}
+  .download-card{display:flex;align-items:center;justify-content:space-between;gap:18px;
+    padding:20px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+  .download-card-head{display:flex;align-items:center;gap:12px;min-width:0}
+  .download-card h3{font-size:15px;font-weight:700;line-height:1.25}
+  .download-card p{margin-top:3px;color:var(--dimmer);font-size:12.5px;line-height:1.35}
+  .platform-mark{display:grid;place-items:center;width:36px;height:36px;flex:0 0 36px;
+    border-radius:10px;background:rgba(79,70,229,.18);color:var(--accent-lt);font-weight:800}
+  .download-actions{display:flex;gap:7px;flex:0 0 auto}
+  .formats{display:grid;grid-template-columns:.8fr 1.2fr;gap:28px;align-items:center;
+    max-width:860px;margin:0 auto 34px;padding:22px;text-align:left;border:1px solid var(--line);
+    border-radius:14px;background:rgba(255,255,255,.025)}
+  .formats .eyebrow{text-align:left;margin-bottom:7px}
+  .formats h3{font-size:17px;font-weight:700;margin-bottom:5px}
+  .formats p:not(.eyebrow){color:var(--dim);font-size:13.5px;line-height:1.5}
+  .format-list{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .format-pill{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:58px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.035)}
+  .format-pill strong{font-size:14px;color:#fff}
+  .format-pill small{color:var(--dimmer);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+  @media(max-width:760px){
+    .download-grid{grid-template-columns:1fr}
+    .formats{grid-template-columns:1fr;gap:18px}
+  }
+  @media(max-width:440px){
+    .download-card{align-items:flex-start;flex-direction:column}
+    .download-card .btn{width:100%;justify-content:center}
+    .download-actions{width:100%}
+    .download-actions .btn{flex:1}
+    .format-list{grid-template-columns:repeat(2,1fr)}
+  }
+
   /* ---------- faq ---------- */
   .faq{max-width:800px;margin:0 auto}
   details{background:var(--surface);border:1px solid var(--line);border-radius:13px;
@@ -296,7 +329,7 @@
 </nav>
 
 <header class="hero wrap">
-  <div class="badge"><span class="dot"></span>Version 2.0.2 · Free &amp; open source</div>
+  <div class="badge"><span class="dot"></span>Windows + macOS · Free &amp; open source</div>
   <h1>Your playlists.<br><span class="grad">Offline. Forever.</span></h1>
   <p class="sub">
     Playlists disappear. Videos get deleted, channels go private, links rot.
@@ -305,14 +338,14 @@
   <div class="cta">
     <a href="/download" class="btn btn-primary" data-dl>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Download for Windows
+      Download for your computer
     </a>
     <a href="#features" class="btn btn-ghost">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
       See what it does
     </a>
   </div>
-  <p class="cta-note">Windows 10/11 · 95 MB · No account required</p>
+  <p class="cta-note">Windows 10/11 · macOS 12+ · Intel + Apple Silicon · No account required</p>
 
   <div class="shot rv">
     <picture>
@@ -368,14 +401,47 @@
   <div class="cta rv" style="margin-bottom:34px">
     <a href="/download" class="btn btn-primary" data-dl>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Download for Windows
+       Download for your computer
     </a>
   </div>
 
+  <div class="download-grid rv" aria-label="Desktop downloads">
+    <article class="download-card">
+      <div class="download-card-head"><span class="platform-mark">W</span><div><h3>Windows installer</h3><p>Windows 10 and 11 · 64-bit</p></div></div>
+      <a href="/download" class="btn btn-primary btn-sm">Download .exe</a>
+    </article>
+    <article class="download-card">
+      <div class="download-card-head"><span class="platform-mark">W</span><div><h3>Windows portable</h3><p>Run without installing</p></div></div>
+      <a href="/download/windows/portable" class="btn btn-ghost btn-sm">Download portable .exe</a>
+    </article>
+    <article class="download-card">
+      <div class="download-card-head"><span class="platform-mark">⌘</span><div><h3>macOS Intel</h3><p>macOS 12+ · Intel Macs</p></div></div>
+      <div class="download-actions"><a href="/download/mac/intel" class="btn btn-primary btn-sm">DMG</a><a href="/download/mac/intel/zip" class="btn btn-ghost btn-sm">ZIP</a></div>
+    </article>
+    <article class="download-card">
+      <div class="download-card-head"><span class="platform-mark">⌘</span><div><h3>macOS Apple Silicon</h3><p>macOS 12+ · M1, M2, M3, M4</p></div></div>
+      <div class="download-actions"><a href="/download/mac/apple-silicon" class="btn btn-primary btn-sm">DMG</a><a href="/download/mac/apple-silicon/zip" class="btn btn-ghost btn-sm">ZIP</a></div>
+    </article>
+  </div>
+
+  <div class="formats rv">
+    <div><p class="eyebrow">Output formats</p><h3>Choose the file type in the app</h3><p>Video and audio downloads are saved locally in the format that fits your library.</p></div>
+    <div class="format-list">
+      <span class="format-pill"><strong>MP4</strong><small>video</small></span>
+      <span class="format-pill"><strong>MKV</strong><small>video</small></span>
+      <span class="format-pill"><strong>WebM</strong><small>video</small></span>
+      <span class="format-pill"><strong>MP3</strong><small>audio</small></span>
+      <span class="format-pill"><strong>M4A</strong><small>audio</small></span>
+      <span class="format-pill"><strong>Opus</strong><small>audio</small></span>
+      <span class="format-pill"><strong>FLAC</strong><small>lossless</small></span>
+      <span class="format-pill"><strong>WAV</strong><small>uncompressed</small></span>
+    </div>
+  </div>
+
   <dl class="specs rv" style="max-width:860px;margin:0 auto 34px">
-    <div class="spec"><dt>Version</dt><dd>2.0.2</dd></div>
-    <div class="spec"><dt>Platform</dt><dd>Windows 10/11</dd></div>
-    <div class="spec"><dt>Size</dt><dd>95 MB</dd></div>
+    <div class="spec"><dt>Version</dt><dd>2.0.3</dd></div>
+    <div class="spec"><dt>Platform</dt><dd>Windows + macOS</dd></div>
+    <div class="spec"><dt>Size</dt><dd>Varies by platform</dd></div>
     <div class="spec"><dt>Licence</dt><dd>MIT</dd></div>
     <div class="spec"><dt>Price</dt><dd>Free</dd></div>
   </dl>
@@ -418,6 +484,18 @@
       glow.classList.toggle('paused', document.hidden);
     });
   }
+
+  // Point Mac visitors at the matching architecture when Chromium exposes it.
+  const macDownloadArch = navigator.userAgentData?.platform === 'macOS'
+    ? Promise.resolve(navigator.userAgentData.getHighEntropyValues?.(['architecture'])).then(({ architecture } = {}) =>
+        architecture === 'arm' ? 'arm64' : 'x64')
+    : Promise.resolve(/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1 ? 'arm64' : 'x64');
+  macDownloadArch?.then((arch) => {
+    if (!/Macintosh|Mac OS X/i.test(navigator.userAgent)) return;
+    document.querySelectorAll('[data-dl]').forEach((link) => {
+      link.href = `/download/mac?arch=${arch}`;
+    });
+  });
 
   const items = document.querySelectorAll('.rv');
   if (!document.documentElement.classList.contains('js')) {

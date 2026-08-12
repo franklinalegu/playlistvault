@@ -1,29 +1,37 @@
 name: Release
 
-# Builds the Windows installer on a real Windows runner and publishes it as a
-# GitHub Release. Triggered by pushing a version tag:
-#
-#   npm version patch      # bumps package.json and creates the tag
-#   git push --follow-tags
-#
-# Can also be run manually from the Actions tab to produce a draft.
 on:
   push:
     tags:
       - 'v*.*.*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to build (e.g. 2.0.1). Defaults to package.json.'
-        required: false
 
 permissions:
-  contents: write # required to create the release and upload assets
+  contents: write
 
 jobs:
-  build-windows:
-    name: Build Windows installer
-    runs-on: windows-latest
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            runner: windows-latest
+            arch: x64
+            build_args: '--win nsis portable --x64'
+            artifact: PlaylistVault-windows
+          - platform: macos
+            runner: macos-13
+            arch: x64
+            build_args: '--mac dmg zip --x64'
+            artifact: PlaylistVault-macos-x64
+          - platform: macos
+            runner: macos-latest
+            arch: arm64
+            build_args: '--mac dmg zip --arm64'
+            artifact: PlaylistVault-macos-arm64
 
     steps:
       - name: Check out
@@ -38,95 +46,116 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Fail fast: never publish a release that doesn't typecheck or pass tests.
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
 
       - name: Test
         run: npm test
 
-      # yt-dlp only. FFmpeg is fetched by the app on first run, which keeps the
-      # installer near 95 MB instead of ~144 MB.
-      - name: Fetch bundled yt-dlp
-        run: node scripts/fetch-binaries.mjs --no-ffmpeg
+      - name: Fetch platform binaries
+        run: npm run fetch:binaries -- --arch=${{ matrix.arch }}
 
-      # electron-builder only packages what already exists: its `files` config
-      # points at dist/ and dist-electron/, both gitignored. Without this step
-      # they are absent on a fresh checkout and the build fails immediately.
       - name: Build renderer, main and preload
         run: npx vite build
 
-      - name: Verify the tag matches package.json
+      - name: Verify tag version
         if: startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
+        shell: bash
         run: |
-          $pkg = (Get-Content package.json | ConvertFrom-Json).version
-          $tag = "${{ github.ref_name }}" -replace '^v', ''
-          if ($pkg -ne $tag) {
-            Write-Error "Tag v$tag does not match package.json version $pkg. Bump the version and re-tag."
+          test "$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME#v}"
+
+      - name: Package
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ (matrix.platform == 'windows' && secrets.CSC_LINK != '') || (matrix.platform == 'macos' && secrets.CSC_LINK_MAC != '') }}
+          CSC_LINK: ${{ matrix.platform == 'windows' && secrets.CSC_LINK || matrix.platform == 'macos' && secrets.CSC_LINK_MAC || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'windows' && secrets.CSC_KEY_PASSWORD || matrix.platform == 'macos' && secrets.CSC_KEY_PASSWORD_MAC || '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npx electron-builder ${{ matrix.build_args }} --publish never
+
+      - name: Preserve macOS update metadata by architecture
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          metadata=$(find release -type f -name 'latest-mac.yml' -print -quit)
+          if [ -z "$metadata" ]; then
+            echo 'latest-mac.yml was not generated'
             exit 1
-          }
-          Write-Host "Version check passed: $pkg"
+          fi
+          mv "$metadata" "$(dirname "$metadata")/latest-mac-${{ matrix.arch }}.yml"
 
-      # Two explicit steps rather than one with inline conditionals. The
-      # previous single-step version interpolated both the --publish value and
-      # an EP_DRAFT env var, and failed in 6s before electron-builder even
-      # started. Keeping the commands literal makes failures readable.
-      - name: Build and publish (tagged release)
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win nsis --x64 --publish always
-
-      - name: Build only (manual run)
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        run: npx electron-builder --win nsis --x64 --publish never
-
-      - name: Show what was produced
-        if: always()
-        shell: pwsh
-        run: |
-          if (Test-Path release) {
-            Get-ChildItem release -Recurse -Include *.exe, *.yml, *.blockmap |
-              Select-Object Name, @{n='MB';e={[math]::Round($_.Length/1MB,1)}}
-          } else {
-            Write-Host 'No release directory was produced.'
-          }
-
-      # Keep the build even when not publishing, so manual runs are still useful.
-      # Publish to Cloudflare R2 so downloads keep working when the repo goes
-      # private. Skipped automatically if the secrets are absent, so the build
-      # never breaks for anyone who hasn't configured R2.
-      - name: Upload installer to Cloudflare R2
-        if: startsWith(github.ref, 'refs/tags/v') && env.R2_ACCESS_KEY_ID != ''
-        env:
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-        shell: pwsh
-        run: |
-          $exe = Get-ChildItem release -Recurse -Filter *.exe |
-                 Where-Object { $_.Name -notmatch 'portable' } |
-                 Select-Object -First 1
-          if (-not $exe) { Write-Error 'No installer found to upload'; exit 1 }
-
-          # latest.yml drives the in-app updater, so it must ship alongside.
-          $yml = Get-ChildItem release -Recurse -Filter latest.yml | Select-Object -First 1
-
-          pip install --quiet --disable-pip-version-check boto3
-          $env:UPLOAD_EXE = $exe.FullName
-          $env:UPLOAD_YML = if ($yml) { $yml.FullName } else { '' }
-          $env:UPLOAD_VERSION = '${{ github.ref_name }}'
-          python scripts/upload-r2.py
-
-      - name: Upload installer as a workflow artifact
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: PlaylistVault-windows-installer
+          name: ${{ matrix.artifact }}
           path: |
             release/**/*.exe
-            release/**/latest.yml
+            release/**/*.dmg
+            release/**/*.zip
+            release/**/*.yml
             release/**/*.blockmap
-          retention-days: 14
           if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: PlaylistVault-windows
+          path: release
+
+      - name: Download macOS Intel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: PlaylistVault-macos-x64
+          path: release
+
+      - name: Download macOS Apple Silicon artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: PlaylistVault-macos-arm64
+          path: release
+
+      - name: Set up Node for metadata merge
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install metadata tooling
+        run: npm ci --ignore-scripts
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const yaml = require('js-yaml');
+          const release = 'release';
+          const files = fs.readdirSync(release, { recursive: true })
+            .filter((name) => /^latest-mac-(x64|arm64)\.yml$/.test(path.basename(name)))
+            .map((name) => path.join(release, name));
+          if (files.length !== 2) throw new Error(`Expected two macOS metadata files, found ${files.length}`);
+          const docs = files.map((file) => yaml.load(fs.readFileSync(file, 'utf8')));
+          const merged = {
+            version: docs[0].version,
+            files: docs.flatMap((doc) => doc.files ?? []),
+            releaseDate: docs[0].releaseDate
+          };
+          fs.writeFileSync(path.join(release, 'latest-mac.yml'), yaml.dump(merged, { noRefs: true }));
+          for (const file of files) fs.rmSync(file);
+          NODE
+          mapfile -t assets < <(find release -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.yml' -o -name '*.blockmap' \))
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "PlaylistVault ${GITHUB_REF_NAME#v}" \
+            --generate-notes

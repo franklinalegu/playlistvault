@@ -62,10 +62,12 @@ describe('unwritable destination fails loudly', () => {
   let ro: string;
   beforeEach(() => {
     ro = fs.mkdtempSync(path.join(os.tmpdir(), 'pv-ro-'));
-    fs.chmodSync(ro, 0o555);
+    // A chmod-only test is ineffective when the suite runs as an administrator
+    // or on a filesystem that ignores POSIX mode bits. A file blocker is
+    // consistently impossible to create a child directory beneath.
+    fs.writeFileSync(path.join(ro, 'blocker'), 'not a directory');
   });
   afterEach(() => {
-    fs.chmodSync(ro, 0o755);
     fs.rmSync(ro, { recursive: true, force: true });
   });
 
@@ -78,7 +80,7 @@ describe('unwritable destination fails loudly', () => {
     mgr.enqueue({
       playlist,
       selectedVideoIds: ['v1'],
-      destination: path.join(ro, 'nested'),
+      destination: path.join(ro, 'blocker', 'nested'),
       options: { ...DEFAULT_DOWNLOAD_OPTIONS, writeResourceManifest: false }
     });
 
@@ -90,7 +92,7 @@ describe('unwritable destination fails loudly', () => {
     expect(finished).not.toBeNull();
     const job = finished as { status: string; items: { error?: string }[] };
     expect(job.status).toBe('failed');
-    expect(job.items[0].error).toMatch(/Permission denied|not found|read-only/i);
+    expect(job.items[0].error).toMatch(/Permission denied|not found|read-only|folder is required/i);
     mgr.shutdown();
   }, 15000);
 });

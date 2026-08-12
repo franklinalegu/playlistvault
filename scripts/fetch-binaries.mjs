@@ -5,7 +5,8 @@
  *
  *   npm run fetch:binaries
  *
- * Existing files are left alone unless --force is passed.
+ * Existing files are left alone unless --force is passed. Use --arch x64 or
+ * --arch arm64 when packaging for a different target than the current host.
  */
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -22,6 +23,9 @@ const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BIN_DIR = path.join(ROOT, 'resources', 'bin');
 const FORCE = process.argv.includes('--force');
+const requestedArch = process.argv.find((arg) => arg.startsWith('--arch='))?.split('=')[1]
+  ?? (process.argv.includes('--arch') ? process.argv[process.argv.indexOf('--arch') + 1] : undefined);
+const arch = requestedArch === 'arm64' ? 'arm64' : requestedArch === 'x64' ? 'x64' : process.arch === 'arm64' ? 'arm64' : 'x64';
 
 /**
  * Skip the FFmpeg download.
@@ -39,16 +43,20 @@ const YTDLP_URL = isWindows
 
 const FFMPEG_ZIP =
   'https://github.com/GyanD/codexffmpeg/releases/download/7.1/ffmpeg-7.1-essentials_build.zip';
+const NODE_VERSION = '22.14.0';
 
 async function main() {
   await fsp.mkdir(BIN_DIR, { recursive: true });
   console.log(`→ Target: ${BIN_DIR}\n`);
 
   await fetchYtDlp();
+  await fetchNodeRuntime();
   if (SKIP_FFMPEG) {
     console.log('• FFmpeg: skipped (--no-ffmpeg). The app downloads it on first run.');
   } else if (isWindows) {
     await fetchFfmpegWindows();
+  } else if (process.platform === 'darwin') {
+    await fetchFfmpegMac();
   } else {
     console.log('• FFmpeg: skipping automatic download on this platform.');
     console.log('  Install it with your package manager (e.g. `apt install ffmpeg`)');
@@ -56,6 +64,41 @@ async function main() {
   }
 
   console.log('\n✓ Done. Run `npm run dev` to start the app.');
+}
+
+async function fetchNodeRuntime() {
+  const target = path.join(BIN_DIR, isWindows ? 'node.exe' : 'node');
+  if (fs.existsSync(target) && !FORCE) {
+    console.log('• Node.js runtime: already present (use --force to re-download)');
+    return;
+  }
+
+  const archive = isWindows
+    ? `node-v${NODE_VERSION}-win-${arch}.zip`
+    : `node-v${NODE_VERSION}-darwin-${arch}.tar.gz`;
+  const url = `https://nodejs.org/dist/v${NODE_VERSION}/${archive}`;
+  const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'playlistvault-node-'));
+  const archivePath = path.join(tmpDir, archive);
+
+  try {
+    console.log(`• Node.js runtime: downloading ${NODE_VERSION} (${arch})…`);
+    await download(url, archivePath);
+    if (isWindows) {
+      await execFileAsync('powershell', [
+        '-NoProfile', '-Command',
+        `Expand-Archive -Path "${archivePath}" -DestinationPath "${tmpDir}" -Force`
+      ], { windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
+    } else {
+      await execFileAsync('tar', ['-xzf', archivePath, '-C', tmpDir]);
+    }
+    const found = findFile(tmpDir, isWindows ? 'node.exe' : 'node');
+    if (!found) throw new Error('Node.js runtime was not found inside the archive');
+    await fsp.copyFile(found, target);
+    if (!isWindows) await fsp.chmod(target, 0o755);
+    console.log('  ✓ Node.js runtime ready');
+  } finally {
+    await fsp.rm(tmpDir, { recursive: true, force: true });
+  }
 }
 
 async function fetchYtDlp() {
@@ -96,6 +139,32 @@ async function fetchFfmpegWindows() {
       const found = findFile(tmpDir, name);
       if (!found) throw new Error(`${name} was not found inside the archive`);
       await fsp.copyFile(found, path.join(BIN_DIR, name));
+    }
+    console.log('  ✓ FFmpeg + FFprobe ready');
+  } finally {
+    await fsp.rm(tmpDir, { recursive: true, force: true });
+  }
+}
+
+async function fetchFfmpegMac() {
+  const targets = ['ffmpeg', 'ffprobe'];
+  if (targets.every((name) => fs.existsSync(path.join(BIN_DIR, name))) && !FORCE) {
+    console.log('• FFmpeg: already present (use --force to re-download)');
+    return;
+  }
+
+  const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'playlistvault-ffmpeg-'));
+  const zipPath = path.join(tmpDir, 'ffmpeg.zip');
+  try {
+    console.log('• FFmpeg: downloading macOS build…');
+    await download('https://evermeet.cx/ffmpeg/getrelease/zip', zipPath);
+    const zip = new (await import('adm-zip')).default(zipPath);
+    for (const name of targets) {
+      const entry = zip.getEntries().find((item) => path.basename(item.entryName) === name);
+      if (!entry) throw new Error(`${name} was not found inside the macOS FFmpeg archive`);
+      const target = path.join(BIN_DIR, name);
+      await fsp.writeFile(target, entry.getData());
+      await fsp.chmod(target, 0o755);
     }
     console.log('  ✓ FFmpeg + FFprobe ready');
   } finally {

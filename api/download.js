@@ -1,8 +1,8 @@
 /**
- * /download — always serves the newest Windows installer.
+ * /download — always serves the newest platform installer.
  *
  * A static redirect can't do this: the artifact name embeds the version
- * (PlaylistVault-2.0.2-x64.exe), so the URL changes with every release. This
+ * (PlaylistVault-2.0.3-x64.exe), so the URL changes with every release. This
  * function asks the GitHub API which release is current and forwards to that
  * asset, meaning the download link never needs editing again.
  *
@@ -33,7 +33,8 @@ const REPO = process.env.GITHUB_REPO || 'franklinalegu/playlistvault';
 // Last known-good build, used only if the API is unreachable so the button
 // degrades to "slightly stale" rather than "broken".
 const FALLBACK =
-  'https://github.com/franklinalegu/playlistvault/releases/download/v2.0.2/PlaylistVault-2.0.2-x64.exe';
+  'https://github.com/franklinalegu/playlistvault/releases/download/v2.0.3/PlaylistVault-2.0.3-x64.exe';
+const FALLBACK_MAC = 'https://github.com/franklinalegu/playlistvault/releases/latest';
 
 /** Pick the Windows installer from a release's assets. */
 function findInstaller(assets) {
@@ -49,20 +50,64 @@ function findInstaller(assets) {
   return assets.find(isInstaller) || null;
 }
 
+function requestedPlatform(req) {
+  const explicit = req.query?.platform;
+  if (explicit === 'mac' || explicit === 'win') return explicit;
+  return /Macintosh|Mac OS X/i.test(req.headers?.['user-agent'] ?? '') ? 'mac' : 'win';
+}
+
+function requestedMacArch(req) {
+  const explicit = req.query?.arch;
+  if (explicit === 'arm64' || explicit === 'x64') return explicit;
+  const clientHint = req.headers?.['sec-ch-ua-arch'];
+  return /arm/i.test(clientHint ?? '') ? 'arm64' : 'x64';
+}
+
+function requestedFormat(req) {
+  const format = req.query?.format;
+  return format === 'zip' || format === 'portable' ? format : 'dmg';
+}
+
+function findWindowsInstaller(assets, format) {
+  if (!Array.isArray(assets)) return null;
+  if (format === 'portable') {
+    return assets.find((asset) => /portable.*\.exe$/i.test(asset.name)) || null;
+  }
+  return findInstaller(assets);
+}
+
+function findMacInstaller(assets, arch, format) {
+  if (!Array.isArray(assets)) return null;
+  return assets.find((asset) => new RegExp(`-${arch}\\.${format}$`, 'i').test(asset.name)) || null;
+}
+
 export default async function handler(req, res) {
+  const platform = requestedPlatform(req);
+  const macArch = platform === 'mac' ? requestedMacArch(req) : null;
+  const format = requestedFormat(req);
+  const hasExplicitMacTarget = platform === 'mac' && (req.query?.arch || req.query?.format);
   // R2 first: a stable URL that already points at the newest build, so there
   // is no API call, no rate limit and no dependency on repo visibility.
   if (process.env.R2_PUBLIC_URL) {
     const base = process.env.R2_PUBLIC_URL.replace(/\/+$/, '');
     res.setHeader('Cache-Control', 'public, max-age=300');
-    res.redirect(302, `${base}/${R2_INSTALLER}`);
-    return;
+    if (platform === 'win' && format !== 'portable') {
+      res.redirect(302, `${base}/${R2_INSTALLER}`);
+      return;
+    }
+    if (platform === 'mac' && !hasExplicitMacTarget && process.env.R2_MAC_URL) {
+      res.redirect(302, process.env.R2_MAC_URL);
+      return;
+    }
   }
 
   // A manual override wins over the GitHub lookup below.
-  if (process.env.DOWNLOAD_URL) {
+  const manualUrl = platform === 'mac'
+    ? (process.env.DOWNLOAD_MAC_URL || process.env.DOWNLOAD_URL)
+    : process.env.DOWNLOAD_URL;
+  if (manualUrl && !hasExplicitMacTarget) {
     res.setHeader('Cache-Control', 'public, max-age=300');
-    res.redirect(302, process.env.DOWNLOAD_URL);
+    res.redirect(302, manualUrl);
     return;
   }
 
@@ -85,7 +130,9 @@ export default async function handler(req, res) {
     if (!api.ok) throw new Error(`GitHub API returned ${api.status}`);
 
     const release = await api.json();
-    const asset = findInstaller(release.assets);
+    const asset = platform === 'mac'
+      ? findMacInstaller(release.assets, macArch, format)
+      : findWindowsInstaller(release.assets, format);
     if (!asset) throw new Error('No installer asset in the latest release');
 
     // With a token the browser can't follow browser_download_url directly on a
@@ -121,6 +168,6 @@ export default async function handler(req, res) {
     // build we know exists and record why.
     console.error('[download] falling back:', error.message);
     res.setHeader('Cache-Control', 'no-store');
-    res.redirect(302, FALLBACK);
+    res.redirect(302, platform === 'mac' ? FALLBACK_MAC : FALLBACK);
   }
 }

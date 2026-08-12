@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron';
-import { app } from 'electron';
+import { app, net } from 'electron';
 import pkg from 'electron-updater';
 import { IPC, type UpdateState } from '@shared/types';
 import type { SettingsService } from '@backend/settings/settingsService.js';
@@ -8,6 +8,12 @@ const { autoUpdater } = pkg;
 
 let windowGetter: (() => BrowserWindow | null) | null = null;
 let configured = false;
+let checkInProgress = false;
+let wasOnline = true;
+
+const STARTUP_CHECK_DELAY_MS = 8_000;
+const PERIODIC_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1_000;
+const CONNECTIVITY_POLL_INTERVAL_MS = 30 * 1_000;
 
 function emit(state: UpdateState): void {
   const win = windowGetter?.();
@@ -15,8 +21,8 @@ function emit(state: UpdateState): void {
 }
 
 /**
- * Wire up electron-updater. Downloads are opt-in-ish: we fetch automatically
- * but never restart without the user pressing "Restart & install".
+ * Wire up electron-updater. Updates download automatically while the app is
+ * running, then install on quit or when the user presses "Restart & install".
  */
 export function setupAutoUpdater(
   getWindow: () => BrowserWindow | null,
@@ -54,8 +60,15 @@ export function setupAutoUpdater(
   }
 
   if (settings.get().autoCheckUpdates) {
-    // Delay so startup stays snappy.
-    setTimeout(() => void checkForUpdates(false), 8000);
+    // Delay so startup stays snappy, then keep checking while the app is open.
+    wasOnline = net.isOnline();
+    setTimeout(() => void checkForUpdates(false), STARTUP_CHECK_DELAY_MS);
+    setInterval(() => void checkForUpdates(false), PERIODIC_CHECK_INTERVAL_MS);
+    setInterval(() => {
+      const online = net.isOnline();
+      if (online && !wasOnline) void checkForUpdates(false);
+      wasOnline = online;
+    }, CONNECTIVITY_POLL_INTERVAL_MS);
   }
 }
 
@@ -67,6 +80,8 @@ export async function checkForUpdates(manual: boolean): Promise<void> {
     });
     return;
   }
+  if (checkInProgress) return;
+  checkInProgress = true;
   try {
     await autoUpdater.checkForUpdates();
   } catch (error) {
@@ -74,6 +89,8 @@ export async function checkForUpdates(manual: boolean): Promise<void> {
       status: 'error',
       message: error instanceof Error ? error.message : 'Update check failed.'
     });
+  } finally {
+    checkInProgress = false;
   }
 }
 

@@ -2,7 +2,7 @@
 
 Built by **Franklin Alegu (FA)**.
 
-A modern Windows desktop app for downloading YouTube playlists for offline viewing — built with Electron, React, TypeScript, Vite and Tailwind CSS, powered by `yt-dlp` and FFmpeg.
+A modern desktop app for downloading YouTube playlists for offline viewing — built with Electron, React, TypeScript, Vite and Tailwind CSS, powered by `yt-dlp` and FFmpeg.
 
 > **Responsible use.** PlaylistVault is intended for archiving content you own, content published under a licence that permits redistribution, or content you have explicit permission to save. Downloading copyrighted material without authorisation may breach YouTube's Terms of Service and the copyright law where you live. You are responsible for how you use this software.
 
@@ -29,7 +29,7 @@ A modern Windows desktop app for downloading YouTube playlists for offline viewi
 ## Requirements
 
 - **Node.js 18+** and npm
-- **Windows 10/11** to produce the `.exe` (the app itself also runs on macOS/Linux for development)
+- **Windows 10/11** or **macOS 12+** to run the packaged app
 - `yt-dlp` and `ffmpeg` — fetched automatically, see below
 
 ## Getting started
@@ -40,19 +40,20 @@ npm run fetch:binaries   # download yt-dlp + FFmpeg into resources/bin
 npm run dev          # launch the app with hot reload
 ```
 
-`fetch:binaries` pulls the latest `yt-dlp.exe` and an FFmpeg essentials build into `resources/bin/`, which is bundled into the installer so the shipped app is fully self-contained. Pass `--force` to re-download. If it fails (corporate proxy, etc.) you can drop `yt-dlp.exe`, `ffmpeg.exe` and `ffprobe.exe` into `resources/bin/` yourself, or point Settings → Dependencies at an existing install.
+`fetch:binaries` pulls platform- and architecture-matched yt-dlp, Node.js, and FFmpeg binaries into `resources/bin/`, which are bundled into the installer. Pass `--force` to re-download. Use `--arch x64` or `--arch arm64` when cross-packaging. If it fails (corporate proxy, etc.) you can point Settings → Dependencies at an existing install.
 
 The app searches for binaries in this order: an explicit path from Settings → the bundled `resources/bin` → `~/.playlistvault/bin` → your system `PATH`.
 
-## Building the Windows app
+## Building the desktop apps
 
 ```bash
 npm run dist            # NSIS installer + portable .exe  -> release/1.0.0/
 npm run dist:portable   # portable .exe only
+npm run dist:mac        # macOS DMG + ZIP for the current Mac architecture
 npm run pack            # unpacked directory (fast, for smoke testing)
 ```
 
-The installer lets the user choose the install directory, creates desktop and Start Menu shortcuts, registers an uninstall entry, and supports auto-update via `electron-updater` (configure the `publish` block in `package.json` to point at your own release host).
+The Windows installer lets the user choose the install directory, creates desktop and Start Menu shortcuts, registers an uninstall entry, and supports automatic updates via `electron-updater`. Installed apps check after startup, when connectivity returns, and periodically while running; updates download in the background and install on restart. macOS releases are distributed as DMG and ZIP files and require Apple signing/notarization for reliable automatic updates and a warning-free first launch.
 
 ## Scripts
 
@@ -135,7 +136,7 @@ Beyond the unit suite, the pipeline was verified end-to-end against live YouTube
 
 ## Releasing
 
-Tagged pushes build and publish the Windows installer automatically via GitHub Actions:
+Tagged pushes build and publish the Windows and macOS installers automatically via GitHub Actions:
 
 ```bash
 npm version patch && git push --follow-tags
