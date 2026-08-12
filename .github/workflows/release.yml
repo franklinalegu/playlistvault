@@ -75,19 +75,8 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: npx electron-builder ${{ matrix.build_args }} --publish never
 
-      - name: Package macOS signed
-        if: matrix.platform == 'macos' && secrets.CSC_LINK_MAC != '' && secrets.CSC_KEY_PASSWORD_MAC != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != ''
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'true'
-          CSC_LINK: ${{ secrets.CSC_LINK_MAC }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD_MAC }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npx electron-builder ${{ matrix.build_args }} --publish never
-
       - name: Package macOS unsigned
-        if: matrix.platform == 'macos' && !(secrets.CSC_LINK_MAC != '' && secrets.CSC_KEY_PASSWORD_MAC != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '')
+        if: matrix.platform == 'macos'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npx electron-builder ${{ matrix.build_args }} --publish never
