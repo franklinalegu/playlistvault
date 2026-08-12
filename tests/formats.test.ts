@@ -61,4 +61,12 @@ describe('buildDownloadArgs', () => {
     const a = args();
     expect(a[a.length - 1]).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
   });
+
+  it('adds YouTube JavaScript challenge solving arguments', () => {
+    const a = args();
+    expect(a).toContain('--js-runtimes');
+    expect(a[a.indexOf('--js-runtimes') + 1]).toMatch(/^node:/);
+    expect(a).toContain('--remote-components');
+    expect(a[a.indexOf('--remote-components') + 1]).toBe('ejs:github');
+  });
 });

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type {
   DownloadItem,
+  BrowserCookieSource,
   DownloadJob,
   DownloadOptions,
   JobProgressSnapshot,
@@ -47,10 +48,15 @@ export class DownloadManager extends EventEmitter {
   private lastEmit = new Map<string, number>();
   private maxConcurrentJobs = 1;
   private orderCounter = 0;
+  private browserCookieSource: BrowserCookieSource = 'none';
 
   setMaxConcurrentJobs(n: number): void {
     this.maxConcurrentJobs = Math.min(4, Math.max(1, n));
     void this.pump();
+  }
+
+  setBrowserCookieSource(source: BrowserCookieSource): void {
+    this.browserCookieSource = source;
   }
 
   list(): DownloadJob[] {
@@ -412,7 +418,8 @@ export class DownloadManager extends EventEmitter {
         url: video.url,
         outputTemplate,
         options: job.options,
-        ffmpegPath: resolveBinaries().ffmpeg
+        ffmpegPath: resolveBinaries().ffmpeg,
+        browserCookieSource: this.browserCookieSource
       });
 
       const handle = runYtDlp(args, {
