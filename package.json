@@ -1,6 +1,6 @@
 {
   "name": "playlistvault",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "PlaylistVault — download YouTube playlists you have the right to save, for offline viewing.",
   "author": {
     "name": "Franklin Alegu"
@@ -60,7 +60,6 @@
     "appId": "app.playlistvault.desktop",
     "productName": "PlaylistVault",
     "copyright": "Copyright © 2026 Franklin Alegu (FA)",
-    "afterSign": "scripts/after-sign.cjs",
     "directories": {
       "output": "release/${version}",
       "buildResources": "resources"
@@ -82,6 +81,7 @@
     ],
     "protocols": [{ "name": "PlaylistVault link", "schemes": ["playlistvault"] }],
     "win": {
+      "afterSign": "scripts/after-sign.cjs",
       "legalTrademarks": "Franklin Alegu (FA)",
       "target": [
         {

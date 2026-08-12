@@ -2,7 +2,7 @@
  * /download — always serves the newest platform installer.
  *
  * A static redirect can't do this: the artifact name embeds the version
- * (PlaylistVault-2.0.4-x64.exe), so the URL changes with every release. This
+ * (PlaylistVault-2.0.5-x64.exe), so the URL changes with every release. This
  * function asks the GitHub API which release is current and forwards to that
  * asset, meaning the download link never needs editing again.
  *
@@ -33,7 +33,7 @@ const REPO = process.env.GITHUB_REPO || 'franklinalegu/playlistvault';
 // Last known-good build, used only if the API is unreachable so the button
 // degrades to "slightly stale" rather than "broken".
 const FALLBACK =
-  'https://github.com/franklinalegu/playlistvault/releases/download/v2.0.4/PlaylistVault-2.0.4-x64.exe';
+  'https://github.com/franklinalegu/playlistvault/releases/download/v2.0.5/PlaylistVault-2.0.5-x64.exe';
 const FALLBACK_MAC = 'https://github.com/franklinalegu/playlistvault/releases/latest';
 
 /** Pick the Windows installer from a release's assets. */
