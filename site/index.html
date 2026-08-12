@@ -21,7 +21,7 @@
   }
 </script>
 <link rel="icon" type="image/png" href="assets/icon.png">
-<link rel="preload" as="image" href="assets/shot-home.webp" fetchpriority="high">
+<link rel="preload" as="image" href="assets/shot-home.jpg" fetchpriority="high">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Loaded async: a blocking font stylesheet delays first paint by a full
@@ -139,6 +139,7 @@
   /* ---------- shot ---------- */
   .shot{margin:56px auto 0;max-width:1000px;position:relative;width:100%}
   .shot img,.shot video{width:100%;height:auto;display:block;border-radius:var(--radius);
+    image-rendering:auto;
     border:1px solid var(--line);box-shadow:0 30px 70px -20px rgba(0,0,0,.75)}
   @media(max-width:640px){
     .shot{margin-top:38px;border-radius:12px}
@@ -300,11 +301,10 @@
 
   <div class="shot rv">
     <picture>
-      <source srcset="assets/shot-home.webp" type="image/webp">
       <img src="assets/shot-home.jpg"
            alt="PlaylistVault analysing a 19-video playlist, showing duration, estimated size and per-video selection"
            loading="eager" fetchpriority="high" decoding="async"
-           width="1568" height="882">
+           width="1919" height="1079">
     </picture>
   </div>
 </header>
@@ -363,9 +363,8 @@
       </ul>
     </div>
     <div class="rv"><picture>
-      <source srcset="assets/shot-options.webp" type="image/webp">
       <img src="assets/shot-options.jpg" alt="Download options with quality, container and organisation settings"
-           loading="lazy" decoding="async" width="1568" height="882">
+           loading="lazy" decoding="async" width="1919" height="1079">
     </picture></div>
   </div>
 </section>
@@ -384,9 +383,8 @@
       </ul>
     </div>
     <div class="rv"><picture>
-      <source srcset="assets/shot-settings.webp" type="image/webp">
       <img src="assets/shot-settings.jpg" alt="Settings page showing theme, accent colour and download preferences"
-           loading="lazy" decoding="async" width="1568" height="882">
+           loading="lazy" decoding="async" width="1919" height="1079">
     </picture></div>
   </div>
 </section>
@@ -396,7 +394,7 @@
   <h2 class="rv">Thirty-six seconds</h2>
   <p class="lede rv">Real footage of the app — no mockups, no motion-graphics fakery.</p>
   <div class="shot rv">
-    <video controls preload="none" poster="assets/shot-home.webp" playsinline width="1920" height="1080">
+    <video controls preload="none" poster="assets/shot-home.jpg" playsinline width="1920" height="1080">
       <source src="assets/demo.mp4" type="video/mp4">
       Your browser does not support video playback.
     </video>
