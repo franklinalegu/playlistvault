@@ -215,6 +215,7 @@ jobs:
               --title "PlaylistVault ${GITHUB_REF_NAME#v}" \
               --generate-notes
           fi
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false
 
   publish-mac:
     name: Publish macOS release
@@ -279,3 +280,4 @@ jobs:
               --title "PlaylistVault ${GITHUB_REF_NAME#v}" \
               --generate-notes
           fi
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false
