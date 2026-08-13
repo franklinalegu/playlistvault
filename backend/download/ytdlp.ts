@@ -140,6 +140,17 @@ export function humanizeYtDlpError(stderr: string, code: number | null): string 
   if (text.includes('ffmpeg')) {
     return 'FFmpeg failed while merging. Open Settings → Dependencies to verify your FFmpeg install.';
   }
+  if (text.includes('udemy')) {
+    if (text.includes('enroll') || text.includes('403') || text.includes('not purchased') || text.includes('not enrolled')) {
+      return 'This Udemy course requires an active enrollment. Sign in with the account that purchased it, then retry.';
+    }
+    if (text.includes('log in') || text.includes('login') || text.includes('session') || text.includes('access token') || text.includes('authentication')) {
+      return 'Udemy needs a signed-in session. Add a cookies.txt file or pick a signed-in browser in Settings, then retry.';
+    }
+    if (text.includes('cookies') && text.includes('unable to read')) {
+      return 'The cookies.txt file could not be read. Check the path in Settings → Sign-in & platform access.';
+    }
+  }
 
   const lastLine = (stderr || '')
     .split('\n')

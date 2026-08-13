@@ -33,6 +33,7 @@ const FALLBACK: AppSettings = {
   recentDestinations: [],
   legalAcknowledged: false,
   browserCookieSource: 'none',
+  cookiesFile: undefined,
   proxy: { enabled: false, type: 'http', host: '', port: 8080 },
   globalSpeedLimitKbps: 0,
   postDownloadAction: 'none',

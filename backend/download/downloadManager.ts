@@ -17,6 +17,7 @@ import { buildDownloadArgs } from './formats.js';
 import { runYtDlp, humanizeYtDlpError } from './ytdlp.js';
 import { parseProgressLine } from './progress.js';
 import { padIndex, sanitizeFilename, isSafeDestination } from '../util/sanitize.js';
+import { parseSourceUrl } from '../util/platform.js';
 import { findInfoJson, readVideoLinks, cleanupInfoJson, type VideoLinks } from '../manifest/linkExtractor.js';
 import { writeManifest } from '../manifest/manifestWriter.js';
 import { log } from '../util/logger.js';
@@ -50,6 +51,7 @@ export class DownloadManager extends EventEmitter {
   private maxConcurrentJobs = 1;
   private orderCounter = 0;
   private browserCookieSource: BrowserCookieSource = 'none';
+  private cookiesFile?: string;
   private proxy: ProxyConfig | undefined;
   private globalSpeedLimitKbps = 0;
 
@@ -60,6 +62,10 @@ export class DownloadManager extends EventEmitter {
 
   setBrowserCookieSource(source: BrowserCookieSource): void {
     this.browserCookieSource = source;
+  }
+
+  setCookiesFile(cookiesFile?: string): void {
+    this.cookiesFile = cookiesFile?.trim() || undefined;
   }
 
   setProxy(proxy: ProxyConfig | undefined): void {
@@ -424,15 +430,17 @@ export class DownloadManager extends EventEmitter {
       item.startedAt = item.startedAt ?? new Date().toISOString();
       this.emitProgress(job);
 
-      const outputTemplate = this.buildOutputTemplate(job, item);
+      const outputTemplate = this.buildOutputTemplate(job, item, video);
       const args = buildDownloadArgs({
         url: video.url,
         outputTemplate,
         options: job.options,
         ffmpegPath: resolveBinaries().ffmpeg,
         browserCookieSource: this.browserCookieSource,
+        cookiesFile: this.cookiesFile,
         proxy: this.proxy,
-        globalSpeedLimitKbps: this.globalSpeedLimitKbps
+        globalSpeedLimitKbps: this.globalSpeedLimitKbps,
+        playlistItems: video.playlistItems
       });
 
       const handle = runYtDlp(args, {
@@ -528,8 +536,21 @@ export class DownloadManager extends EventEmitter {
     this.emitProgress(job);
   }
 
-  /** Build a yt-dlp -o template with a sanitised, optionally numbered name. */
-  private buildOutputTemplate(job: DownloadJob, item: DownloadItem): string {
+  /** Build a yt-dlp -o template, preserving exact titles for course platforms. */
+  private buildOutputTemplate(job: DownloadJob, item: DownloadItem, video?: PlaylistVideo): string {
+    if (parseSourceUrl(job.sourceUrl).platform === 'udemy') {
+      // Course lectures: keep the exact lecture title and group by course
+      // chapter. Fields resolve from the full course extraction at download
+      // time (see playlistItems in buildDownloadArgs).
+      if (video?.playlistItems !== undefined) {
+        return path.join(
+          job.destination,
+          '%(chapter_number)02d - %(chapter)s/%(playlist_index)03d - %(title)s.%(ext)s'
+        );
+      }
+      return path.join(job.destination, '%(title)s.%(ext)s');
+    }
+
     const safeTitle = sanitizeFilename(item.title);
     const prefix = job.options.numberFiles
       ? `${padIndex(item.index, job.items.length)} - `

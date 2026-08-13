@@ -1,14 +1,15 @@
 import { clipboard, type BrowserWindow } from 'electron';
 import { IPC } from '@shared/types';
-import { parseYouTubeUrl } from '@backend/util/sanitize.js';
+import { parseSourceUrl } from '@backend/util/platform.js';
 import type { SettingsService } from '@backend/settings/settingsService.js';
 
 const POLL_MS = 1500;
 
 /**
- * Optional clipboard monitoring: when enabled, copying a YouTube playlist link
- * anywhere on the system offers to analyze it. We only ever read the clipboard
- * while the setting is on, and only forward links that pass validation.
+ * Optional clipboard monitoring: when enabled, copying a playlist or course
+ * link anywhere on the system offers to analyze it. We only ever read the
+ * clipboard while the setting is on, and only forward links that pass
+ * validation.
  */
 export function startClipboardWatcher(
   getWindow: () => BrowserWindow | null,
@@ -29,7 +30,7 @@ export function startClipboardWatcher(
     if (!text || text === lastSeen || text.length > 2048) return;
     lastSeen = text;
 
-    const parsed = parseYouTubeUrl(text);
+    const parsed = parseSourceUrl(text);
     if (!parsed.valid || parsed.kind !== 'playlist' || !parsed.normalized) return;
 
     const win = getWindow();

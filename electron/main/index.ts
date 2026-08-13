@@ -117,6 +117,7 @@ app.whenReady().then(() => {
   downloadManager = new DownloadManager();
   downloadManager.setMaxConcurrentJobs(settings.get().maxConcurrentJobs);
   downloadManager.setBrowserCookieSource(settings.get().browserCookieSource);
+  downloadManager.setCookiesFile(settings.get().cookiesFile);
 
   void history.prune(settings.get().keepHistoryDays);
 

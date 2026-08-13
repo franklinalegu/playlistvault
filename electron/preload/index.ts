@@ -76,6 +76,8 @@ const api = {
   system: {
     chooseFolder: (current?: string): Promise<ApiResult<string | null>> =>
       ipcRenderer.invoke(IPC.dialogChooseFolder, current),
+    chooseFile: (): Promise<ApiResult<string | null>> =>
+      ipcRenderer.invoke(IPC.dialogChooseFile),
     openPath: (target: string): Promise<ApiResult<boolean>> =>
       ipcRenderer.invoke(IPC.shellOpenPath, target),
     showItem: (target: string): Promise<ApiResult<boolean>> =>

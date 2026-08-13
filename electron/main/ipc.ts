@@ -20,6 +20,7 @@ import { checkBinaries } from '@backend/ffmpeg/binaries.js';
 import { log } from '@backend/util/logger.js';
 import { installDependency } from '@backend/setup/dependencyInstaller.js';
 import { isSafeDestination } from '@backend/util/sanitize.js';
+import { parseSourceUrl } from '@backend/util/platform.js';
 import { checkForUpdates, installUpdate } from './updater.js';
 import { buildFormatProbeArgs } from '@backend/download/formats.js';
 import { runYtDlpCollect } from '@backend/download/ytdlp.js';
@@ -65,7 +66,14 @@ export function registerIpcHandlers(deps: Deps): void {
 
   handle<PlaylistInfo>(IPC.playlistAnalyze, async (req: AnalyzeRequest) => {
     activeAnalysis?.cancel();
-    const handleRef = analyzePlaylist(req.url, req.quality, settings.get().browserCookieSource);
+    const prefs = settings.get();
+    const handleRef = analyzePlaylist(
+      req.url,
+      req.quality,
+      prefs.browserCookieSource,
+      prefs.proxy,
+      prefs.cookiesFile
+    );
     activeAnalysis = handleRef;
     try {
       return await handleRef.promise;
@@ -178,6 +186,7 @@ export function registerIpcHandlers(deps: Deps): void {
     const next = await settings.update(patch);
     downloads.setMaxConcurrentJobs(next.maxConcurrentJobs);
     downloads.setBrowserCookieSource(next.browserCookieSource);
+    downloads.setCookiesFile(next.cookiesFile);
     downloads.setProxy(next.proxy);
     downloads.setGlobalSpeedLimit(next.globalSpeedLimitKbps);
     nativeTheme.themeSource = next.theme;
@@ -188,6 +197,7 @@ export function registerIpcHandlers(deps: Deps): void {
     const next = await settings.reset();
     downloads.setMaxConcurrentJobs(next.maxConcurrentJobs);
     downloads.setBrowserCookieSource(next.browserCookieSource);
+    downloads.setCookiesFile(next.cookiesFile);
     downloads.setProxy(next.proxy);
     downloads.setGlobalSpeedLimit(next.globalSpeedLimitKbps);
     nativeTheme.themeSource = next.theme;
@@ -210,6 +220,21 @@ export function registerIpcHandlers(deps: Deps): void {
       throw new Error('That folder is a protected system location. Please pick another.');
     }
     return chosen;
+  });
+
+  handle<string | null>(IPC.dialogChooseFile, async () => {
+    const win = getWindow();
+    if (!win) return null;
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Choose a cookies file (Netscape format)',
+      filters: [
+        { name: 'Cookie files', extensions: ['txt', 'cookies', 'cookie'] },
+        { name: 'All files', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    return result.filePaths[0];
   });
 
   handle<boolean>(IPC.shellOpenPath, async (target: string) => {
@@ -279,10 +304,15 @@ export function registerIpcHandlers(deps: Deps): void {
   // ---------- Batch import ----------
 
   handle<string[]>(IPC.batchImportUrls, async (text: string) => {
-    const urlRegex = /https?:\/\/(?:www\.)?(?:youtube\.com\/(?:playlist\?list=|watch\?v=)|youtu\.be\/)[\w-]+/gi;
-    const matches = text.match(urlRegex) ?? [];
+    const urlRegex = /https?:\/\/[^\s<>"']+/gi;
+    const matches = (text.match(urlRegex) ?? [])
+      .map((candidate) => {
+        const parsed = parseSourceUrl(candidate);
+        return parsed.valid && parsed.normalized ? parsed.normalized : null;
+      })
+      .filter((u): u is string => u !== null);
     const unique = [...new Set(matches)];
-    if (!unique.length) throw new Error('No YouTube URLs found in the provided text.');
+    if (!unique.length) throw new Error('No YouTube or Udemy URLs found in the provided text.');
     return unique;
   });
 

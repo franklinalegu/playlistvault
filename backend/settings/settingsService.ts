@@ -21,6 +21,7 @@ export function createDefaultSettings(downloadsDir: string): AppSettings {
     recentDestinations: [],
     legalAcknowledged: false,
     browserCookieSource: 'none',
+    cookiesFile: undefined,
     proxy: {
       enabled: false,
       type: 'http',
@@ -61,11 +62,12 @@ export class SettingsService {
       Object.keys(mergedOptions).length !== Object.keys(current.defaultOptions ?? {}).length;
     const needsRecents = !Array.isArray(current.recentDestinations);
     const needsCookieSource = !['none', 'chrome', 'edge', 'firefox'].includes(current.browserCookieSource);
+    const needsCookiesFile = current.cookiesFile === undefined;
     const needsProxy = !current.proxy;
     const needsPostAction = !current.postDownloadAction;
     const needsKeyboardShortcuts = current.keyboardShortcutsEnabled === undefined;
 
-    if (!needsOptions && !needsRecents && !needsCookieSource && !needsProxy && !needsPostAction && !needsKeyboardShortcuts) return;
+    if (!needsOptions && !needsRecents && !needsCookieSource && !needsCookiesFile && !needsProxy && !needsPostAction && !needsKeyboardShortcuts) return;
 
     await this.store.write({
       ...defaults,
@@ -75,6 +77,7 @@ export class SettingsService {
         ? current.recentDestinations
         : [],
       browserCookieSource: needsCookieSource ? defaults.browserCookieSource : current.browserCookieSource,
+      cookiesFile: needsCookiesFile ? defaults.cookiesFile : current.cookiesFile,
       proxy: needsProxy ? defaults.proxy : current.proxy,
       postDownloadAction: needsPostAction ? defaults.postDownloadAction : current.postDownloadAction,
       keyboardShortcutsEnabled: needsKeyboardShortcuts ? defaults.keyboardShortcutsEnabled : current.keyboardShortcutsEnabled

@@ -3,6 +3,7 @@ import {
   FiCheckCircle,
   FiFileText,
   FiFolder,
+  FiKey,
   FiRefreshCw,
   FiRotateCcw,
   FiXCircle
@@ -313,10 +314,10 @@ export function Settings(): JSX.Element {
           </p>
         </Section>
 
-        <Section title="YouTube sign-in">
+        <Section title="Sign-in & platform access">
           <p className="mb-3 text-xs leading-relaxed text-slate-500">
-            YouTube may require a browser session. PlaylistVault reads it locally and never uploads
-            or stores cookies. Close the selected browser before testing.
+            YouTube, Udemy and other platforms may require a signed-in session. PlaylistVault reads it
+            locally and never uploads or stores cookies. Close the selected browser before testing.
           </p>
           <div className="flex items-end gap-2">
             <Select
@@ -344,6 +345,50 @@ export function Settings(): JSX.Element {
             >
               {testingAuth ? 'Testing…' : 'Test session'}
             </button>
+          </div>
+
+          <div className="mt-4 border-t border-white/[0.06] pt-4">
+            <p className="mb-2 text-xs leading-relaxed text-slate-500">
+              For Udemy courses, export your browser session as a Netscape <code className="rounded bg-black/30 px-1">cookies.txt</code> file
+              (e.g. with the “Get cookies.txt” extension) and select it here.
+            </p>
+            <div className="flex items-center gap-2">
+              <div
+                className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+                  settings.cookiesFile
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200/90'
+                    : 'border-white/[0.07] bg-white/[0.03] text-slate-500'
+                }`}
+                title={settings.cookiesFile}
+              >
+                <FiKey className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">
+                  {settings.cookiesFile ?? 'No cookies.txt selected'}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn-ghost shrink-0"
+                onClick={async () => {
+                  const res = await window.vault.system.chooseFile();
+                  if (res.ok && res.data) {
+                    await update({ cookiesFile: res.data });
+                    success('Cookies file set', res.data);
+                  }
+                }}
+              >
+                {settings.cookiesFile ? 'Change' : 'Choose file'}
+              </button>
+              {settings.cookiesFile && (
+                <button
+                  type="button"
+                  className="btn-ghost shrink-0"
+                  onClick={() => void update({ cookiesFile: undefined })}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
         </Section>
 

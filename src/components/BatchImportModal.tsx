@@ -18,7 +18,7 @@ export function BatchImportModal({ isOpen, onClose, onImport }: BatchImportModal
 
   const handleParseUrls = async (): Promise<void> => {
     if (!text.trim()) {
-      error('No text', 'Paste some text containing YouTube URLs first.');
+      error('No text', 'Paste some text containing YouTube or Udemy links first.');
       return;
     }
     setParsing(true);
@@ -27,7 +27,7 @@ export function BatchImportModal({ isOpen, onClose, onImport }: BatchImportModal
     if (res.ok) {
       setParsedUrls(res.data);
       if (res.data.length === 0) {
-        error('No URLs found', 'No YouTube URLs were detected in the provided text.');
+        error('No URLs found', 'No YouTube or Udemy links were detected in the provided text.');
       }
     } else {
       error('Parse failed', res.error);
@@ -83,8 +83,8 @@ export function BatchImportModal({ isOpen, onClose, onImport }: BatchImportModal
         </div>
 
         <p className="mb-4 text-xs leading-relaxed text-slate-400">
-          Paste text containing YouTube playlist or video URLs, or import from a text file.
-          All valid URLs will be detected and queued for analysis.
+          Paste text containing YouTube or Udemy playlist, course or video URLs, or import from a
+          text file. All valid URLs will be detected and queued for analysis.
         </p>
 
         <div className="mb-4">
@@ -94,7 +94,7 @@ export function BatchImportModal({ isOpen, onClose, onImport }: BatchImportModal
               setText(e.target.value);
               setParsedUrls([]);
             }}
-            placeholder="Paste YouTube URLs here...&#10;&#10;Example:&#10;https://www.youtube.com/playlist?list=PLxxxx&#10;https://www.youtube.com/watch?v=xxxxxx&#10;https://youtu.be/xxxxxx"
+            placeholder="Paste YouTube or Udemy URLs here...&#10;&#10;Example:&#10;https://www.youtube.com/playlist?list=PLxxxx&#10;https://www.udemy.com/course/example-course/&#10;https://youtu.be/xxxxxx"
             className="input min-h-[120px] w-full resize-y font-mono text-xs"
             rows={6}
           />

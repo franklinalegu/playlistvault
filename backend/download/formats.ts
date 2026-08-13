@@ -48,8 +48,11 @@ export function buildDownloadArgs(params: {
   options: DownloadOptions;
   ffmpegPath: string;
   browserCookieSource?: BrowserCookieSource;
+  cookiesFile?: string;
   proxy?: ProxyConfig;
   globalSpeedLimitKbps?: number;
+  /** Resolve a single entry from a playlist/course by its 1-based position. */
+  playlistItems?: number;
 }): string[] {
   const {
     url,
@@ -57,12 +60,13 @@ export function buildDownloadArgs(params: {
     options,
     ffmpegPath,
     browserCookieSource = 'none',
+    cookiesFile,
     proxy,
-    globalSpeedLimitKbps = 0
+    globalSpeedLimitKbps = 0,
+    playlistItems
   } = params;
 
   const args: string[] = [
-    '--no-playlist',
     '--newline',
     '--progress',
     '--no-colors',
@@ -78,8 +82,18 @@ export function buildDownloadArgs(params: {
     '--format', buildFormatSelector(options)
   ];
 
+  if (playlistItems === undefined) {
+    args.push('--no-playlist');
+  } else {
+    // Resolving a course item through the full playlist keeps its chapter,
+    // playlist index and course title — which the exact-title output template
+    // below relies on. Empty the "NA" placeholder so a missing field collapses.
+    args.push('--playlist-items', String(playlistItems), '--output-na-placeholder', '');
+  }
+
   addYouTubeRuntimeArgs(args);
   if (browserCookieSource !== 'none') args.push('--cookies-from-browser', browserCookieSource);
+  if (cookiesFile) args.push('--cookies', cookiesFile);
 
   // Speed limiting: prefer per-job setting, fall back to global
   const effectiveSpeedLimit = options.speedLimitKbps || globalSpeedLimitKbps;
@@ -125,7 +139,12 @@ export function buildDownloadArgs(params: {
 }
 
 /** Argv for dumping playlist metadata as newline-delimited JSON. */
-export function buildAnalyzeArgs(url: string, browserCookieSource: BrowserCookieSource = 'none', proxy?: ProxyConfig): string[] {
+export function buildAnalyzeArgs(
+  url: string,
+  browserCookieSource: BrowserCookieSource = 'none',
+  proxy?: ProxyConfig,
+  cookiesFile?: string
+): string[] {
   const args = [
     '--dump-single-json',
     '--flat-playlist',
@@ -137,6 +156,7 @@ export function buildAnalyzeArgs(url: string, browserCookieSource: BrowserCookie
   ];
   addYouTubeRuntimeArgs(args);
   if (browserCookieSource !== 'none') args.push('--cookies-from-browser', browserCookieSource);
+  if (cookiesFile) args.push('--cookies', cookiesFile);
   if (proxy?.enabled && proxy.host && proxy.port) {
     const proxyUrl = `${proxy.type}://${proxy.host}:${proxy.port}`;
     args.push('--proxy', proxyUrl);
@@ -147,7 +167,8 @@ export function buildAnalyzeArgs(url: string, browserCookieSource: BrowserCookie
 
 export function buildFormatProbeArgs(
   url: string,
-  browserCookieSource: BrowserCookieSource = 'none'
+  browserCookieSource: BrowserCookieSource = 'none',
+  cookiesFile?: string
 ): string[] {
   const args = [
     '--list-formats', '--no-playlist', '--ignore-config', '--no-warnings', '--no-colors',
@@ -155,6 +176,7 @@ export function buildFormatProbeArgs(
   ];
   addYouTubeRuntimeArgs(args);
   if (browserCookieSource !== 'none') args.push('--cookies-from-browser', browserCookieSource);
+  if (cookiesFile) args.push('--cookies', cookiesFile);
   args.push(url);
   return args;
 }

@@ -1,5 +1,5 @@
 import type { BrowserCookieSource, PlaylistInfo, PlaylistVideo, ProxyConfig, VideoQuality } from '@shared/types';
-import { parseYouTubeUrl } from '../util/sanitize.js';
+import { parseSourceUrl } from '../util/platform.js';
 import { estimateBytes } from '@shared/format';
 import { buildAnalyzeArgs } from '../download/formats.js';
 import { runYtDlpCollect } from '../download/ytdlp.js';
@@ -64,9 +64,17 @@ export interface AnalyzeHandle {
 /**
  * Read a playlist (or a single video) into our domain model.
  * Uses `--flat-playlist` so even 5000-item playlists resolve in seconds.
+ * YouTube keeps the flat path; Udemy courses are listed flat too, while each
+ * lecture is later resolved through its course for full chapter context.
  */
-export function analyzePlaylist(rawUrl: string, quality: VideoQuality, browserCookieSource: BrowserCookieSource = 'none', proxy?: ProxyConfig): AnalyzeHandle {
-  const parsed = parseYouTubeUrl(rawUrl);
+export function analyzePlaylist(
+  rawUrl: string,
+  quality: VideoQuality,
+  browserCookieSource: BrowserCookieSource = 'none',
+  proxy?: ProxyConfig,
+  cookiesFile?: string
+): AnalyzeHandle {
+  const parsed = parseSourceUrl(rawUrl);
   if (!parsed.valid || !parsed.normalized) {
     return {
       promise: Promise.reject(new Error(parsed.reason ?? 'Invalid URL.')),
@@ -74,7 +82,12 @@ export function analyzePlaylist(rawUrl: string, quality: VideoQuality, browserCo
     };
   }
 
-  const { promise: raw, kill } = runYtDlpCollect(buildAnalyzeArgs(parsed.normalized, browserCookieSource, proxy));
+  const { promise: raw, kill } = runYtDlpCollect(
+    buildAnalyzeArgs(parsed.normalized, browserCookieSource, proxy, cookiesFile)
+  );
+
+  // Captured before the async callback so the narrowed type survives.
+  const normalized = parsed.normalized;
 
   const promise = raw.then((stdout) => {
     const trimmed = stdout.trim();
@@ -87,42 +100,95 @@ export function analyzePlaylist(rawUrl: string, quality: VideoQuality, browserCo
       throw new Error('Could not read the playlist data returned by yt-dlp.');
     }
 
-    const rawEntries: RawEntry[] = Array.isArray(data.entries)
-      ? data.entries.filter(Boolean)
-      : [data];
+    if (parsed.platform === 'udemy') {
+      return buildUdemyPlaylist(data, normalized, quality);
+    }
 
-    const videos: PlaylistVideo[] = rawEntries.map((entry, i) => {
-      const state = availability(entry);
-      return {
-        id: entry.id ?? `unknown-${i}`,
-        title: entry.title?.trim() || 'Untitled video',
-        durationSeconds: Math.max(0, Math.round(entry.duration ?? 0)),
-        thumbnail: pickThumbnail(entry),
-        uploader: entry.uploader ?? entry.channel ?? data.uploader ?? data.channel,
-        url: entryUrl(entry),
-        index: i + 1,
-        isAvailable: state.isAvailable,
-        unavailableReason: state.reason
-      };
-    });
-
-    const totalDurationSeconds = videos.reduce((sum, v) => sum + v.durationSeconds, 0);
-
-    return {
-      id: data.id ?? parsed.playlistId ?? parsed.videoId ?? 'unknown',
-      title: data.title?.trim() || 'Untitled playlist',
-      creator: data.uploader ?? data.channel ?? 'Unknown creator',
-      channelUrl: data.channel_url ?? data.uploader_url,
-      thumbnail: pickThumbnail(data) ?? videos.find((v) => v.thumbnail)?.thumbnail,
-      description: data.description?.slice(0, 800),
-      videoCount: videos.length,
-      totalDurationSeconds,
-      estimatedBytes: estimateBytes(totalDurationSeconds, quality),
-      videos,
-      sourceUrl: parsed.normalized!,
-      fetchedAt: new Date().toISOString()
-    } satisfies PlaylistInfo;
+    return buildYouTubePlaylist(data, parsed, quality);
   });
 
   return { promise, cancel: kill };
+}
+
+function buildYouTubePlaylist(data: RawPlaylist, parsed: { playlistId?: string; videoId?: string; normalized?: string }, quality: VideoQuality): PlaylistInfo {
+  const rawEntries: RawEntry[] = Array.isArray(data.entries)
+    ? data.entries.filter(Boolean)
+    : [data];
+
+  const videos: PlaylistVideo[] = rawEntries.map((entry, i) => {
+    const state = availability(entry);
+    return {
+      id: entry.id ?? `unknown-${i}`,
+      title: entry.title?.trim() || 'Untitled video',
+      durationSeconds: Math.max(0, Math.round(entry.duration ?? 0)),
+      thumbnail: pickThumbnail(entry),
+      uploader: entry.uploader ?? entry.channel ?? data.uploader ?? data.channel,
+      url: entryUrl(entry),
+      index: i + 1,
+      isAvailable: state.isAvailable,
+      unavailableReason: state.reason
+    };
+  });
+
+  const totalDurationSeconds = videos.reduce((sum, v) => sum + v.durationSeconds, 0);
+
+  return {
+    id: data.id ?? parsed.playlistId ?? parsed.videoId ?? 'unknown',
+    title: data.title?.trim() || 'Untitled playlist',
+    creator: data.uploader ?? data.channel ?? 'Unknown creator',
+    platform: 'youtube',
+    channelUrl: data.channel_url ?? data.uploader_url,
+    thumbnail: pickThumbnail(data) ?? videos.find((v) => v.thumbnail)?.thumbnail,
+    description: data.description?.slice(0, 800),
+    videoCount: videos.length,
+    totalDurationSeconds,
+    estimatedBytes: estimateBytes(totalDurationSeconds, quality),
+    videos,
+    sourceUrl: parsed.normalized ?? data.webpage_url ?? '',
+    fetchedAt: new Date().toISOString()
+  } satisfies PlaylistInfo;
+}
+
+/**
+ * Udemy course or single lecture. `--flat-playlist` lists the curriculum
+ * (titles + chapters) without durations; downloads resolve each lecture
+ * through its course URL + playlist position so files keep exact titles and
+ * chapter folders.
+ */
+function buildUdemyPlaylist(data: RawPlaylist, normalized: string, quality: VideoQuality): PlaylistInfo {
+  const entries = Array.isArray(data.entries) ? data.entries.filter(Boolean) : [];
+  const isCourse = entries.length > 0;
+  const rawEntries: RawEntry[] = isCourse ? entries : [data];
+
+  const videos: PlaylistVideo[] = rawEntries.map((entry, i) => {
+    const title = entry.title?.trim() || 'Untitled lecture';
+    return {
+      id: entry.id ?? `udemy-${i}`,
+      title,
+      durationSeconds: 0,
+      uploader: entry.uploader ?? data.uploader ?? data.channel,
+      // Course lectures download through the course URL + playlist position so
+      // yt-dlp carries the chapter and exact lecture title into the filename.
+      url: normalized,
+      index: i + 1,
+      isAvailable: true,
+      ...(isCourse ? { playlistItems: i + 1 } : {})
+    };
+  });
+
+  const title = data.title?.trim() || (isCourse ? 'Udemy course' : 'Udemy lecture');
+
+  return {
+    id: data.id ?? 'udemy-course',
+    title,
+    creator: data.uploader ?? data.channel ?? 'Udemy',
+    platform: 'udemy',
+    description: data.description?.slice(0, 800),
+    videoCount: videos.length,
+    totalDurationSeconds: 0,
+    estimatedBytes: estimateBytes(0, quality),
+    videos,
+    sourceUrl: normalized,
+    fetchedAt: new Date().toISOString()
+  } satisfies PlaylistInfo;
 }

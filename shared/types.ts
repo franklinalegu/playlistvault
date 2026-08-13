@@ -6,6 +6,9 @@
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 
+/** Download source platform. Extensible — add a platform here and in the URL parser. */
+export type SourcePlatform = 'youtube' | 'udemy';
+
 export type VideoQuality =
   | 'best'
   | '2160p'
@@ -42,12 +45,20 @@ export interface PlaylistVideo {
   index: number;
   isAvailable: boolean;
   unavailableReason?: string;
+  /**
+   * For multi-part courses (e.g. Udemy): resolves this item by its playlist
+   * position from `url` so yt-dlp extracts it with full course context
+   * (chapter, playlist index) instead of as a detached single video.
+   */
+  playlistItems?: number;
 }
 
 export interface PlaylistInfo {
   id: string;
   title: string;
   creator: string;
+  /** Which platform this playlist was resolved from. */
+  platform: SourcePlatform;
   channelUrl?: string;
   thumbnail?: string;
   description?: string;
@@ -200,6 +211,12 @@ export interface AppSettings {
   ffmpegPath?: string;
   legalAcknowledged: boolean;
   browserCookieSource: BrowserCookieSource;
+  /**
+   * Absolute path to a Netscape-format cookies.txt file, used for platforms
+   * that need a signed-in session (e.g. Udemy courses). Browser cookie
+   * extraction does not always cover these sites.
+   */
+  cookiesFile?: string;
   /** Proxy configuration for downloads. */
   proxy: ProxyConfig;
   /** Global download speed limit in KB/s (0 = unlimited). */
@@ -293,6 +310,7 @@ export const IPC = {
   settingsReset: 'settings:reset',
 
   dialogChooseFolder: 'dialog:choose-folder',
+  dialogChooseFile: 'dialog:choose-file',
   shellOpenPath: 'shell:open-path',
   shellShowItem: 'shell:show-item',
   shellOpenExternal: 'shell:open-external',

@@ -56,9 +56,20 @@ export function PlaylistPanel({
         </div>
 
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-lg font-semibold tracking-tight text-white">
-            {playlist.title}
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="truncate text-lg font-semibold tracking-tight text-white">
+              {playlist.title}
+            </h2>
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
+                playlist.platform === 'udemy'
+                  ? 'bg-violet-500/15 text-violet-300'
+                  : 'bg-rose-500/15 text-rose-300'
+              }`}
+            >
+              {playlist.platform}
+            </span>
+          </div>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-400">
             <FiUser className="h-3.5 w-3.5" />
             {playlist.creator}
@@ -66,8 +77,19 @@ export function PlaylistPanel({
 
           <div className="mt-3 grid grid-cols-4 gap-2">
             <StatTile label="Videos" value={String(playlist.videoCount)} />
-            <StatTile label="Duration" value={formatLongDuration(playlist.totalDurationSeconds)} />
-            <StatTile label="Est. size" value={formatBytes(estimatedBytes)} hint="approximate" />
+            <StatTile
+              label="Duration"
+              value={
+                playlist.totalDurationSeconds > 0
+                  ? formatLongDuration(playlist.totalDurationSeconds)
+                  : '—'
+              }
+            />
+            <StatTile
+              label="Est. size"
+              value={estimatedBytes > 0 ? formatBytes(estimatedBytes) : '—'}
+              hint="approximate"
+            />
             <StatTile label="Selected" value={String(selected.size)} />
           </div>
         </div>
