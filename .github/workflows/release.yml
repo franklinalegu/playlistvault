@@ -239,6 +239,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Check out for metadata tooling
+        uses: actions/checkout@v4
+
       - name: Install metadata tooling
         run: npm ci --ignore-scripts
 
