@@ -59,14 +59,14 @@ jobs:
         with:
           name: PlaylistVault-windows
           path: |
-            release/**/*.exe
-            release/**/*.yml
-            release/**/*.blockmap
+            release/*/PlaylistVault-*.exe
+            release/*/latest.yml
+            release/*/PlaylistVault-*.blockmap
           if-no-files-found: error
 
   build-mac-x64:
     name: Build macos Intel
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -121,10 +121,10 @@ jobs:
         with:
           name: PlaylistVault-macos-x64
           path: |
-            release/**/*.dmg
-            release/**/*.zip
-            release/**/*.yml
-            release/**/*.blockmap
+            release/*/PlaylistVault-*.dmg
+            release/*/PlaylistVault-*.zip
+            release/*/latest-mac-x64.yml
+            release/*/PlaylistVault-*.blockmap
           if-no-files-found: error
 
   build-mac-arm64:
@@ -184,10 +184,10 @@ jobs:
         with:
           name: PlaylistVault-macos-arm64
           path: |
-            release/**/*.dmg
-            release/**/*.zip
-            release/**/*.yml
-            release/**/*.blockmap
+            release/*/PlaylistVault-*.dmg
+            release/*/PlaylistVault-*.zip
+            release/*/latest-mac-arm64.yml
+            release/*/PlaylistVault-*.blockmap
           if-no-files-found: error
 
   publish-windows:
@@ -206,7 +206,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mapfile -t assets < <(find release -type f \( -name '*.exe' -o -name '*.yml' -o -name '*.blockmap' \))
+          mapfile -t assets < <(find release -type f \( -name 'PlaylistVault-*.exe' -o -name 'latest.yml' -o -name 'PlaylistVault-*.blockmap' \))
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
           else
@@ -267,7 +267,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mapfile -t assets < <(find release -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.yml' -o -name '*.blockmap' \))
+          mapfile -t assets < <(find release -type f \( -name 'PlaylistVault-*.dmg' -o -name 'PlaylistVault-*.zip' -o -name 'latest-mac.yml' -o -name 'PlaylistVault-*.blockmap' \))
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
           else
