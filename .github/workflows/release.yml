@@ -10,29 +10,9 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build ${{ matrix.platform }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows
-            runner: windows-latest
-            arch: x64
-            build_args: '--win nsis portable --x64'
-            artifact: PlaylistVault-windows
-          - platform: macos
-            runner: macos-13
-            arch: x64
-            build_args: '--mac dmg zip --x64'
-            artifact: PlaylistVault-macos-x64
-          - platform: macos
-            runner: macos-latest
-            arch: arm64
-            build_args: '--mac dmg zip --arm64'
-            artifact: PlaylistVault-macos-arm64
-
+  build-windows:
+    name: Build windows
+    runs-on: windows-latest
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -55,8 +35,8 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Fetch platform binaries
-        run: npm run fetch:binaries -- --arch=${{ matrix.arch }}
+      - name: Fetch Windows binaries
+        run: npm run fetch:binaries -- --arch=x64
 
       - name: Build renderer, main and preload
         run: npx vite build
@@ -68,21 +48,65 @@ jobs:
           test "$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME#v}"
 
       - name: Package Windows
-        if: matrix.platform == 'windows'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' && 'true' || 'false' }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        run: npx electron-builder ${{ matrix.build_args }} --publish never
+        run: npx electron-builder --win nsis portable --x64 --publish never
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlaylistVault-windows
+          path: |
+            release/**/*.exe
+            release/**/*.yml
+            release/**/*.blockmap
+          if-no-files-found: error
+
+  build-mac-x64:
+    name: Build macos Intel
+    runs-on: macos-13
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Fetch macOS Intel binaries
+        run: npm run fetch:binaries -- --arch=x64
+
+      - name: Build renderer, main and preload
+        run: npx vite build
+
+      - name: Verify tag version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          test "$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME#v}"
 
       - name: Package macOS unsigned
-        if: matrix.platform == 'macos'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npx electron-builder ${{ matrix.build_args }} --publish never
+        run: npx electron-builder --mac dmg zip --x64 --publish never
 
-      - name: Preserve macOS update metadata by architecture
-        if: matrix.platform == 'macos'
+      - name: Rename macOS metadata
         shell: bash
         run: |
           metadata=$(find release -type f -name 'latest-mac.yml' -print -quit)
@@ -90,35 +114,114 @@ jobs:
             echo 'latest-mac.yml was not generated'
             exit 1
           fi
-          mv "$metadata" "$(dirname "$metadata")/latest-mac-${{ matrix.arch }}.yml"
+          mv "$metadata" "$(dirname "$metadata")/latest-mac-x64.yml"
 
-      - name: Upload build artifacts
+      - name: Upload macOS Intel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
+          name: PlaylistVault-macos-x64
           path: |
-            release/**/*.exe
             release/**/*.dmg
             release/**/*.zip
             release/**/*.yml
             release/**/*.blockmap
           if-no-files-found: error
 
-  publish:
-    name: Publish GitHub release
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
-    runs-on: ubuntu-latest
+  build-mac-arm64:
+    name: Build macOS Apple Silicon
+    runs-on: macos-latest
     steps:
       - name: Check out
         uses: actions/checkout@v4
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Fetch macOS Apple Silicon binaries
+        run: npm run fetch:binaries -- --arch=arm64
+
+      - name: Build renderer, main and preload
+        run: npx vite build
+
+      - name: Verify tag version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          test "$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME#v}"
+
+      - name: Package macOS unsigned
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --mac dmg zip --arm64 --publish never
+
+      - name: Rename macOS metadata
+        shell: bash
+        run: |
+          metadata=$(find release -type f -name 'latest-mac.yml' -print -quit)
+          if [ -z "$metadata" ]; then
+            echo 'latest-mac.yml was not generated'
+            exit 1
+          fi
+          mv "$metadata" "$(dirname "$metadata")/latest-mac-arm64.yml"
+
+      - name: Upload macOS Apple Silicon artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlaylistVault-macos-arm64
+          path: |
+            release/**/*.dmg
+            release/**/*.zip
+            release/**/*.yml
+            release/**/*.blockmap
+          if-no-files-found: error
+
+  publish-windows:
+    name: Publish Windows release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-windows
+    runs-on: ubuntu-latest
+    steps:
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
           name: PlaylistVault-windows
           path: release
 
+      - name: Publish Windows release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mapfile -t assets < <(find release -type f \( -name '*.exe' -o -name '*.yml' -o -name '*.blockmap' \))
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "PlaylistVault ${GITHUB_REF_NAME#v}" \
+              --generate-notes
+          fi
+
+  publish-mac:
+    name: Publish macOS release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-mac-x64, build-mac-arm64]
+    runs-on: ubuntu-latest
+    steps:
       - name: Download macOS Intel artifacts
         uses: actions/download-artifact@v4
         with:
@@ -139,9 +242,7 @@ jobs:
       - name: Install metadata tooling
         run: npm ci --ignore-scripts
 
-      - name: Publish release assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Merge macOS metadata
         run: |
           node <<'NODE'
           const fs = require('node:fs');
@@ -161,8 +262,17 @@ jobs:
           fs.writeFileSync(path.join(release, 'latest-mac.yml'), yaml.dump(merged, { noRefs: true }));
           for (const file of files) fs.rmSync(file);
           NODE
-          mapfile -t assets < <(find release -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.yml' -o -name '*.blockmap' \))
-          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "PlaylistVault ${GITHUB_REF_NAME#v}" \
-            --generate-notes
+
+      - name: Publish macOS release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mapfile -t assets < <(find release -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.yml' -o -name '*.blockmap' \))
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "PlaylistVault ${GITHUB_REF_NAME#v}" \
+              --generate-notes
+          fi
