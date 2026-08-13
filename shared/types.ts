@@ -60,6 +60,29 @@ export interface PlaylistInfo {
   fetchedAt: string;
 }
 
+export type SubtitleLanguage =
+  | 'en' | 'es' | 'fr' | 'de' | 'it' | 'pt' | 'ru' | 'ja' | 'ko' | 'zh'
+  | 'ar' | 'hi' | 'nl' | 'pl' | 'sv' | 'tr' | 'vi' | 'th' | 'uk' | 'id'
+  | 'auto';
+
+export type PostDownloadAction = 'none' | 'shutdown' | 'sleep' | 'hibernate';
+
+export type OutputTemplate = 'default' | 'simple' | 'detailed' | 'custom';
+
+export interface OutputTemplateConfig {
+  preset: OutputTemplate;
+  customPattern?: string;
+}
+
+export interface ProxyConfig {
+  enabled: boolean;
+  type: 'http' | 'https' | 'socks5';
+  host: string;
+  port: number;
+  username?: string;
+  password?: string;
+}
+
 export interface DownloadOptions {
   quality: VideoQuality;
   container: VideoContainer;
@@ -75,6 +98,12 @@ export interface DownloadOptions {
   createPlaylistFolder: boolean;
   concurrency: number;
   rateLimitKbps?: number;
+  /** Custom output template for filenames. */
+  outputTemplate?: OutputTemplateConfig;
+  /** Global speed limit in KB/s (0 = unlimited). */
+  speedLimitKbps?: number;
+  /** Post-download action. */
+  postDownloadAction?: PostDownloadAction;
 }
 
 export interface DownloadItem {
@@ -171,6 +200,16 @@ export interface AppSettings {
   ffmpegPath?: string;
   legalAcknowledged: boolean;
   browserCookieSource: BrowserCookieSource;
+  /** Proxy configuration for downloads. */
+  proxy: ProxyConfig;
+  /** Global download speed limit in KB/s (0 = unlimited). */
+  globalSpeedLimitKbps: number;
+  /** Post-download action for all jobs. */
+  postDownloadAction: PostDownloadAction;
+  /** Keyboard shortcuts enabled. */
+  keyboardShortcutsEnabled: boolean;
+  /** Show download speed in notification. */
+  showSpeedInNotification: boolean;
 }
 
 export type DependencyName = 'yt-dlp' | 'ffmpeg';
@@ -246,6 +285,8 @@ export const IPC = {
   historyClear: 'history:clear',
   historyToggleFavorite: 'history:toggle-favorite',
   historyExportCsv: 'history:export-csv',
+  historyExportJson: 'history:export-json',
+  historySearch: 'history:search',
 
   settingsGet: 'settings:get',
   settingsUpdate: 'settings:update',
@@ -267,7 +308,13 @@ export const IPC = {
   updateState: 'update:state',
 
   clipboardUrlDetected: 'clipboard:url-detected',
-  protocolUrlDetected: 'protocol:url-detected'
+  protocolUrlDetected: 'protocol:url-detected',
+
+  batchImportUrls: 'batch:import-urls',
+  batchParseFile: 'batch:parse-file',
+
+  shutdownSchedule: 'shutdown:schedule',
+  shutdownCancel: 'shutdown:cancel'
 } as const;
 
 export const DEFAULT_DOWNLOAD_OPTIONS: DownloadOptions = {
@@ -282,5 +329,8 @@ export const DEFAULT_DOWNLOAD_OPTIONS: DownloadOptions = {
   skipDuplicates: true,
   writeResourceManifest: true,
   createPlaylistFolder: true,
-  concurrency: 2
+  concurrency: 2,
+  outputTemplate: { preset: 'default' },
+  speedLimitKbps: 0,
+  postDownloadAction: 'none'
 };

@@ -38,7 +38,8 @@ export function History(): JSX.Element {
       return (
         e.playlistTitle.toLowerCase().includes(q) ||
         e.creator.toLowerCase().includes(q) ||
-        e.destination.toLowerCase().includes(q)
+        e.destination.toLowerCase().includes(q) ||
+        e.sourceUrl.toLowerCase().includes(q)
       );
     });
   }, [entries, query, favoritesOnly]);
@@ -53,7 +54,13 @@ export function History(): JSX.Element {
 
   const exportCsv = async (): Promise<void> => {
     const res = await window.vault.history.exportCsv();
-    if (res.ok && res.data) success('History exported', res.data);
+    if (res.ok && res.data) success('History exported as CSV', res.data);
+    else if (!res.ok) error('Export failed', res.error);
+  };
+
+  const exportJson = async (): Promise<void> => {
+    const res = await window.vault.history.exportJson();
+    if (res.ok && res.data) success('History exported as JSON', res.data);
     else if (!res.ok) error('Export failed', res.error);
   };
 
@@ -71,6 +78,10 @@ export function History(): JSX.Element {
             <button onClick={() => void exportCsv()} className="btn-ghost">
               <FiDownloadCloud className="h-4 w-4" />
               Export CSV
+            </button>
+            <button onClick={() => void exportJson()} className="btn-ghost">
+              <FiDownloadCloud className="h-4 w-4" />
+              Export JSON
             </button>
             <button
               onClick={async () => {
@@ -96,7 +107,7 @@ export function History(): JSX.Element {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search history…"
+              placeholder="Search by title, creator, URL, or folder…"
               aria-label="Search history"
               className="input pl-10"
             />

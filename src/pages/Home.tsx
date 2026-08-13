@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FiAlertCircle, FiDownload, FiLink, FiSearch, FiX } from 'react-icons/fi';
+import { FiAlertCircle, FiDownload, FiLink, FiSearch, FiUpload, FiX } from 'react-icons/fi';
 import type { DownloadOptions, PlaylistInfo } from '@shared/types';
 import { estimateBytes } from '@shared/format';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -10,6 +10,7 @@ import { useQueue } from '@/contexts/QueueContext';
 import { useAnalyzer } from '@/hooks/useAnalyzer';
 import { PlaylistPanel } from '@/components/PlaylistPanel';
 import { OptionsPanel } from '@/components/OptionsPanel';
+import { BatchImportModal } from '@/components/BatchImportModal';
 import { EmptyState, PageShell, ProgressBar } from '@/components/ui';
 
 export function Home(): JSX.Element {
@@ -24,6 +25,7 @@ export function Home(): JSX.Element {
   const [options, setOptions] = useState<DownloadOptions>(settings.defaultOptions);
   const [destination, setDestination] = useState(settings.defaultDestination);
   const [starting, setStarting] = useState(false);
+  const [batchImportOpen, setBatchImportOpen] = useState(false);
 
   /**
    * True once the user has picked a folder for *this* download, which stops
@@ -140,6 +142,14 @@ export function Home(): JSX.Element {
     }
   }, [destination, rememberDestination, toastError]);
 
+  const handleBatchImport = useCallback(async (urls: string[]) => {
+    // Analyze the first URL; the rest can be queued manually
+    if (urls.length > 0) {
+      setUrl(urls[0]);
+      await runAnalysis(urls[0]);
+    }
+  }, [runAnalysis]);
+
   const startDownload = useCallback(async () => {
     if (!playlist || selected.size === 0 || starting) return;
     if (!destination) {
@@ -214,12 +224,28 @@ export function Home(): JSX.Element {
             Cancel
           </button>
         ) : (
-          <button type="submit" disabled={!url.trim()} className="btn-primary shrink-0">
-            <FiSearch className="h-4 w-4" />
-            Analyze
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setBatchImportOpen(true)}
+              className="btn-ghost shrink-0"
+              title="Batch import URLs"
+            >
+              <FiUpload className="h-4 w-4" />
+            </button>
+            <button type="submit" disabled={!url.trim()} className="btn-primary shrink-0">
+              <FiSearch className="h-4 w-4" />
+              Analyze
+            </button>
+          </>
         )}
       </form>
+
+      <BatchImportModal
+        isOpen={batchImportOpen}
+        onClose={() => setBatchImportOpen(false)}
+        onImport={handleBatchImport}
+      />
 
       <AnimatePresence mode="wait">
         {loading && (

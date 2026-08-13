@@ -2,6 +2,7 @@ import { FiClock, FiFolder, FiSliders } from 'react-icons/fi';
 import type {
   AudioFormat,
   DownloadOptions,
+  SubtitleLanguage,
   VideoContainer,
   VideoQuality
 } from '@shared/types';
@@ -31,6 +32,30 @@ const AUDIO_FORMATS: { value: AudioFormat; label: string }[] = [
   { value: 'wav', label: 'WAV (uncompressed)' }
 ];
 
+const SUBTITLE_LANGUAGES: { value: SubtitleLanguage; label: string }[] = [
+  { value: 'auto', label: 'Auto-detect' },
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'fr', label: 'French' },
+  { value: 'de', label: 'German' },
+  { value: 'it', label: 'Italian' },
+  { value: 'pt', label: 'Portuguese' },
+  { value: 'ru', label: 'Russian' },
+  { value: 'ja', label: 'Japanese' },
+  { value: 'ko', label: 'Korean' },
+  { value: 'zh', label: 'Chinese' },
+  { value: 'ar', label: 'Arabic' },
+  { value: 'hi', label: 'Hindi' },
+  { value: 'nl', label: 'Dutch' },
+  { value: 'pl', label: 'Polish' },
+  { value: 'sv', label: 'Swedish' },
+  { value: 'tr', label: 'Turkish' },
+  { value: 'vi', label: 'Vietnamese' },
+  { value: 'th', label: 'Thai' },
+  { value: 'uk', label: 'Ukrainian' },
+  { value: 'id', label: 'Indonesian' }
+];
+
 export function OptionsPanel({
   options,
   onChange,
@@ -46,6 +71,22 @@ export function OptionsPanel({
   recentDestinations?: string[];
   onPickRecent?: (dir: string) => void;
 }): JSX.Element {
+  const handleSubtitleLangToggle = (lang: SubtitleLanguage): void => {
+    const current = options.subtitleLanguages;
+    let next: string[];
+    if (lang === 'auto') {
+      next = current.includes('auto') ? [] : ['auto'];
+    } else {
+      next = current.filter((l) => l !== 'auto');
+      if (next.includes(lang)) {
+        next = next.filter((l) => l !== lang);
+      } else {
+        next = [...next, lang];
+      }
+    }
+    onChange({ subtitleLanguages: next.length ? next : ['en'] });
+  };
+
   return (
     <section className="glass p-5">
       <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
@@ -161,6 +202,32 @@ export function OptionsPanel({
         />
       </div>
 
+      {options.writeSubtitles && !options.audioOnly && (
+        <div className="mt-4 border-t border-white/[0.06] pt-4">
+          <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">
+            Subtitle languages
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {SUBTITLE_LANGUAGES.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => handleSubtitleLangToggle(value)}
+                className={`rounded-lg border px-2.5 py-1 text-[11px] transition ${
+                  options.subtitleLanguages.includes(value)
+                    ? 'border-accent-400/40 bg-accent-500/20 text-accent-200'
+                    : 'border-white/10 bg-white/5 text-slate-400 hover:border-white/20'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[11px] text-slate-600">
+            Select one or more languages. "Auto-detect" downloads all available subtitle tracks.
+          </p>
+        </div>
+      )}
+
       <div className="mt-4 border-t border-white/[0.06] pt-4">
         <label className="block">
           <span className="mb-1.5 flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -180,6 +247,34 @@ export function OptionsPanel({
         </label>
         <p className="mt-1.5 text-[11px] text-slate-600">
           Higher values are faster but more likely to trigger rate limiting.
+        </p>
+      </div>
+
+      <div className="mt-4 border-t border-white/[0.06] pt-4">
+        <label className="block">
+          <span className="mb-1.5 flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-500">
+            Speed limit (this job)
+            <span className="tabular-nums text-slate-300">
+              {(!options.speedLimitKbps || options.speedLimitKbps === 0)
+                ? 'Unlimited'
+                : options.speedLimitKbps >= 1000
+                  ? `${(options.speedLimitKbps / 1000).toFixed(1)} MB/s`
+                  : `${options.speedLimitKbps} KB/s`}
+            </span>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={50000}
+            step={100}
+            value={options.speedLimitKbps ?? 0}
+            onChange={(e) => onChange({ speedLimitKbps: Number(e.target.value) })}
+            className="w-full accent-accent"
+            aria-label="Per-job speed limit"
+          />
+        </label>
+        <p className="mt-1.5 text-[11px] text-slate-600">
+          Override the global limit for this job. 0 = use global limit.
         </p>
       </div>
     </section>

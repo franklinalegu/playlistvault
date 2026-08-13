@@ -20,7 +20,19 @@ export function createDefaultSettings(downloadsDir: string): AppSettings {
     keepHistoryDays: 365,
     recentDestinations: [],
     legalAcknowledged: false,
-    browserCookieSource: 'none'
+    browserCookieSource: 'none',
+    proxy: {
+      enabled: false,
+      type: 'http',
+      host: '',
+      port: 8080,
+      username: '',
+      password: ''
+    },
+    globalSpeedLimitKbps: 0,
+    postDownloadAction: 'none',
+    keyboardShortcutsEnabled: true,
+    showSpeedInNotification: false
   };
 }
 
@@ -49,8 +61,11 @@ export class SettingsService {
       Object.keys(mergedOptions).length !== Object.keys(current.defaultOptions ?? {}).length;
     const needsRecents = !Array.isArray(current.recentDestinations);
     const needsCookieSource = !['none', 'chrome', 'edge', 'firefox'].includes(current.browserCookieSource);
+    const needsProxy = !current.proxy;
+    const needsPostAction = !current.postDownloadAction;
+    const needsKeyboardShortcuts = current.keyboardShortcutsEnabled === undefined;
 
-    if (!needsOptions && !needsRecents && !needsCookieSource) return;
+    if (!needsOptions && !needsRecents && !needsCookieSource && !needsProxy && !needsPostAction && !needsKeyboardShortcuts) return;
 
     await this.store.write({
       ...defaults,
@@ -59,7 +74,10 @@ export class SettingsService {
       recentDestinations: Array.isArray(current.recentDestinations)
         ? current.recentDestinations
         : [],
-      browserCookieSource: needsCookieSource ? defaults.browserCookieSource : current.browserCookieSource
+      browserCookieSource: needsCookieSource ? defaults.browserCookieSource : current.browserCookieSource,
+      proxy: needsProxy ? defaults.proxy : current.proxy,
+      postDownloadAction: needsPostAction ? defaults.postDownloadAction : current.postDownloadAction,
+      keyboardShortcutsEnabled: needsKeyboardShortcuts ? defaults.keyboardShortcutsEnabled : current.keyboardShortcutsEnabled
     });
   }
 
@@ -105,6 +123,28 @@ export class SettingsService {
     if (!['none', 'chrome', 'edge', 'firefox'].includes(next.browserCookieSource)) {
       next.browserCookieSource = previous.browserCookieSource;
     }
+
+    // Validate proxy settings
+    if (next.proxy) {
+      if (!['http', 'https', 'socks5'].includes(next.proxy.type)) {
+        next.proxy.type = 'http';
+      }
+      if (typeof next.proxy.port !== 'number' || next.proxy.port < 1 || next.proxy.port > 65535) {
+        next.proxy.port = 8080;
+      }
+      if (typeof next.proxy.host !== 'string') {
+        next.proxy.host = '';
+      }
+    }
+
+    // Validate post-download action
+    if (!['none', 'shutdown', 'sleep', 'hibernate'].includes(next.postDownloadAction)) {
+      next.postDownloadAction = 'none';
+    }
+
+    // Validate speed limit
+    next.globalSpeedLimitKbps = clamp(next.globalSpeedLimitKbps, 0, 100000);
+
     return next;
   }
 

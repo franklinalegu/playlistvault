@@ -60,7 +60,10 @@ const api = {
     clear: (): Promise<ApiResult<HistoryEntry[]>> => ipcRenderer.invoke(IPC.historyClear),
     toggleFavorite: (id: string): Promise<ApiResult<HistoryEntry[]>> =>
       ipcRenderer.invoke(IPC.historyToggleFavorite, id),
-    exportCsv: (): Promise<ApiResult<string | null>> => ipcRenderer.invoke(IPC.historyExportCsv)
+    exportCsv: (): Promise<ApiResult<string | null>> => ipcRenderer.invoke(IPC.historyExportCsv),
+    exportJson: (): Promise<ApiResult<string | null>> => ipcRenderer.invoke(IPC.historyExportJson),
+    search: (query: string): Promise<ApiResult<HistoryEntry[]>> =>
+      ipcRenderer.invoke(IPC.historySearch, query)
   },
 
   settings: {
@@ -92,6 +95,20 @@ const api = {
       subscribe(IPC.clipboardUrlDetected, cb),
     onProtocolUrl: (cb: (url: string) => void): (() => void) =>
       subscribe(IPC.protocolUrlDetected, cb)
+  },
+
+  batch: {
+    importUrls: (text: string): Promise<ApiResult<string[]>> =>
+      ipcRenderer.invoke(IPC.batchImportUrls, text),
+    parseFile: (): Promise<ApiResult<string | null>> =>
+      ipcRenderer.invoke(IPC.batchParseFile)
+  },
+
+  shutdown: {
+    schedule: (action: 'shutdown' | 'sleep' | 'hibernate'): Promise<ApiResult<boolean>> =>
+      ipcRenderer.invoke(IPC.shutdownSchedule, action),
+    cancel: (): Promise<ApiResult<boolean>> =>
+      ipcRenderer.invoke(IPC.shutdownCancel)
   },
 
   updates: {

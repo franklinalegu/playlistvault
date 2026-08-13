@@ -1,4 +1,4 @@
-import type { BrowserCookieSource, DownloadOptions, VideoQuality } from '@shared/types';
+import type { BrowserCookieSource, DownloadOptions, ProxyConfig, VideoQuality } from '@shared/types';
 import { resolveJavaScriptRuntime } from '../ffmpeg/binaries.js';
 
 const HEIGHT_BY_QUALITY: Record<Exclude<VideoQuality, 'best' | 'audio-only'>, number> = {
@@ -48,8 +48,18 @@ export function buildDownloadArgs(params: {
   options: DownloadOptions;
   ffmpegPath: string;
   browserCookieSource?: BrowserCookieSource;
+  proxy?: ProxyConfig;
+  globalSpeedLimitKbps?: number;
 }): string[] {
-  const { url, outputTemplate, options, ffmpegPath, browserCookieSource = 'none' } = params;
+  const {
+    url,
+    outputTemplate,
+    options,
+    ffmpegPath,
+    browserCookieSource = 'none',
+    proxy,
+    globalSpeedLimitKbps = 0
+  } = params;
 
   const args: string[] = [
     '--no-playlist',
@@ -71,8 +81,18 @@ export function buildDownloadArgs(params: {
   addYouTubeRuntimeArgs(args);
   if (browserCookieSource !== 'none') args.push('--cookies-from-browser', browserCookieSource);
 
-  if (options.rateLimitKbps && options.rateLimitKbps > 0) {
+  // Speed limiting: prefer per-job setting, fall back to global
+  const effectiveSpeedLimit = options.speedLimitKbps || globalSpeedLimitKbps;
+  if (effectiveSpeedLimit && effectiveSpeedLimit > 0) {
+    args.push('--limit-rate', `${effectiveSpeedLimit}K`);
+  } else if (options.rateLimitKbps && options.rateLimitKbps > 0) {
     args.push('--limit-rate', `${options.rateLimitKbps}K`);
+  }
+
+  // Proxy support
+  if (proxy?.enabled && proxy.host && proxy.port) {
+    const proxyUrl = `${proxy.type}://${proxy.host}:${proxy.port}`;
+    args.push('--proxy', proxyUrl);
   }
 
   if (options.audioOnly || options.quality === 'audio-only') {
@@ -105,7 +125,7 @@ export function buildDownloadArgs(params: {
 }
 
 /** Argv for dumping playlist metadata as newline-delimited JSON. */
-export function buildAnalyzeArgs(url: string, browserCookieSource: BrowserCookieSource = 'none'): string[] {
+export function buildAnalyzeArgs(url: string, browserCookieSource: BrowserCookieSource = 'none', proxy?: ProxyConfig): string[] {
   const args = [
     '--dump-single-json',
     '--flat-playlist',
@@ -117,6 +137,10 @@ export function buildAnalyzeArgs(url: string, browserCookieSource: BrowserCookie
   ];
   addYouTubeRuntimeArgs(args);
   if (browserCookieSource !== 'none') args.push('--cookies-from-browser', browserCookieSource);
+  if (proxy?.enabled && proxy.host && proxy.port) {
+    const proxyUrl = `${proxy.type}://${proxy.host}:${proxy.port}`;
+    args.push('--proxy', proxyUrl);
+  }
   args.push(url);
   return args;
 }

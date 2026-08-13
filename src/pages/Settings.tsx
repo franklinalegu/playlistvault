@@ -7,7 +7,7 @@ import {
   FiRotateCcw,
   FiXCircle
 } from 'react-icons/fi';
-import type { BinaryStatus, ThemeMode } from '@shared/types';
+import type { BinaryStatus, PostDownloadAction, ThemeMode } from '@shared/types';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/contexts/ToastContext';
 import { PageShell, Select, Toggle } from '@/components/ui';
@@ -153,7 +153,102 @@ export function Settings(): JSX.Element {
           </label>
         </Section>
 
-        <Section title="Notifications & behavior">
+        <Section title="Speed &amp; network">
+          <label className="block">
+            <span className="mb-1.5 flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-500">
+              Global speed limit
+              <span className="tabular-nums text-slate-300">
+                {settings.globalSpeedLimitKbps === 0
+                  ? 'Unlimited'
+                  : settings.globalSpeedLimitKbps >= 1000
+                    ? `${(settings.globalSpeedLimitKbps / 1000).toFixed(1)} MB/s`
+                    : `${settings.globalSpeedLimitKbps} KB/s`}
+              </span>
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={50000}
+              step={100}
+              value={settings.globalSpeedLimitKbps}
+              onChange={(e) => void update({ globalSpeedLimitKbps: Number(e.target.value) })}
+              className="w-full accent-accent"
+              aria-label="Global speed limit"
+            />
+            <p className="mt-1.5 text-[11px] text-slate-600">
+              Set to 0 for unlimited speed. Applies to all downloads globally.
+            </p>
+          </label>
+
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <Select
+              label="Proxy type"
+              value={settings.proxy.type}
+              onChange={(type) =>
+                void update({ proxy: { ...settings.proxy, type: type as 'http' | 'https' | 'socks5' } })
+              }
+              options={[
+                { value: 'http', label: 'HTTP' },
+                { value: 'https', label: 'HTTPS' },
+                { value: 'socks5', label: 'SOCKS5' }
+              ]}
+            />
+            <div>
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                Port
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={65535}
+                value={settings.proxy.port}
+                onChange={(e) =>
+                  void update({ proxy: { ...settings.proxy, port: Number(e.target.value) } })
+                }
+                className="input w-full"
+                placeholder="8080"
+              />
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-4">
+            <div>
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                Host
+              </span>
+              <input
+                type="text"
+                value={settings.proxy.host}
+                onChange={(e) =>
+                  void update({ proxy: { ...settings.proxy, host: e.target.value } })
+                }
+                className="input w-full"
+                placeholder="127.0.0.1"
+              />
+            </div>
+            <div>
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                Username (optional)
+              </span>
+              <input
+                type="text"
+                value={settings.proxy.username ?? ''}
+                onChange={(e) =>
+                  void update({ proxy: { ...settings.proxy, username: e.target.value } })
+                }
+                className="input w-full"
+                placeholder=""
+              />
+            </div>
+          </div>
+          <Toggle
+            label="Enable proxy"
+            description="Route all downloads through a proxy server."
+            checked={settings.proxy.enabled}
+            onChange={(enabled) => void update({ proxy: { ...settings.proxy, enabled } })}
+          />
+        </Section>
+
+        <Section title="Notifications &amp; behavior">
           <div className="divide-y divide-white/[0.06]">
             <Toggle
               label="Windows notifications"
@@ -192,7 +287,30 @@ export function Settings(): JSX.Element {
               checked={settings.confirmBeforeQuit}
               onChange={(confirmBeforeQuit) => void update({ confirmBeforeQuit })}
             />
+            <Toggle
+              label="Keyboard shortcuts"
+              description="Use Ctrl+Enter to start downloads, Escape to cancel, etc."
+              checked={settings.keyboardShortcutsEnabled}
+              onChange={(keyboardShortcutsEnabled) => void update({ keyboardShortcutsEnabled })}
+            />
           </div>
+        </Section>
+
+        <Section title="Post-download action">
+          <Select<PostDownloadAction>
+            label="After all downloads complete"
+            value={settings.postDownloadAction}
+            onChange={(postDownloadAction) => void update({ postDownloadAction })}
+            options={[
+              { value: 'none', label: 'Do nothing' },
+              { value: 'shutdown', label: 'Shut down computer' },
+              { value: 'sleep', label: 'Put computer to sleep' },
+              { value: 'hibernate', label: 'Hibernate computer' }
+            ]}
+          />
+          <p className="mt-2 text-[11px] text-slate-600">
+            The action will be scheduled 10 seconds after all downloads finish.
+          </p>
         </Section>
 
         <Section title="YouTube sign-in">

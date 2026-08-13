@@ -156,6 +156,20 @@ export function registerIpcHandlers(deps: Deps): void {
     return history.exportCsv(result.filePath);
   });
 
+  handle<string | null>(IPC.historyExportJson, async () => {
+    const win = getWindow();
+    if (!win) return null;
+    const result = await dialog.showSaveDialog(win, {
+      title: 'Export download history as JSON',
+      defaultPath: path.join(app.getPath('documents'), 'playlistvault-history.json'),
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    });
+    if (result.canceled || !result.filePath) return null;
+    return history.exportJson(result.filePath);
+  });
+
+  handle<HistoryEntry[]>(IPC.historySearch, (query: string) => history.search(query));
+
   // ---------- Settings ----------
 
   handle<AppSettings>(IPC.settingsGet, () => settings.get());
@@ -164,6 +178,8 @@ export function registerIpcHandlers(deps: Deps): void {
     const next = await settings.update(patch);
     downloads.setMaxConcurrentJobs(next.maxConcurrentJobs);
     downloads.setBrowserCookieSource(next.browserCookieSource);
+    downloads.setProxy(next.proxy);
+    downloads.setGlobalSpeedLimit(next.globalSpeedLimitKbps);
     nativeTheme.themeSource = next.theme;
     return next;
   });
@@ -172,6 +188,8 @@ export function registerIpcHandlers(deps: Deps): void {
     const next = await settings.reset();
     downloads.setMaxConcurrentJobs(next.maxConcurrentJobs);
     downloads.setBrowserCookieSource(next.browserCookieSource);
+    downloads.setProxy(next.proxy);
+    downloads.setGlobalSpeedLimit(next.globalSpeedLimitKbps);
     nativeTheme.themeSource = next.theme;
     return next;
   });
@@ -257,4 +275,75 @@ export function registerIpcHandlers(deps: Deps): void {
   );
   handle<boolean>(IPC.updateCheck, async () => (await checkForUpdates(true), true));
   handle<boolean>(IPC.updateInstall, () => (installUpdate(), true));
+
+  // ---------- Batch import ----------
+
+  handle<string[]>(IPC.batchImportUrls, async (text: string) => {
+    const urlRegex = /https?:\/\/(?:www\.)?(?:youtube\.com\/(?:playlist\?list=|watch\?v=)|youtu\.be\/)[\w-]+/gi;
+    const matches = text.match(urlRegex) ?? [];
+    const unique = [...new Set(matches)];
+    if (!unique.length) throw new Error('No YouTube URLs found in the provided text.');
+    return unique;
+  });
+
+  handle<string | null>(IPC.batchParseFile, async () => {
+    const win = getWindow();
+    if (!win) return null;
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Import URLs from file',
+      filters: [
+        { name: 'Text files', extensions: ['txt', 'text'] },
+        { name: 'All files', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    const fs = await import('node:fs/promises');
+    return fs.readFile(result.filePaths[0], 'utf-8');
+  });
+
+  // ---------- Shutdown scheduling ----------
+
+  handle<boolean>(IPC.shutdownSchedule, async (action: 'shutdown' | 'sleep' | 'hibernate') => {
+    log.info('shutdown', `Scheduling post-download ${action}`);
+    const execFile = (await import('node:child_process')).execFile;
+
+    return new Promise<boolean>((resolve) => {
+      if (process.platform === 'win32') {
+        const flag = action === 'shutdown' ? '/s' : action === 'sleep' ? '/h' : '/h';
+        execFile('shutdown', [flag, '/t', '10', '/f'], (error) => {
+          if (error) {
+            log.error('shutdown', error.message);
+            resolve(false);
+          } else {
+            resolve(true);
+          }
+        });
+      } else {
+        const cmd = action === 'shutdown' ? 'shutdown -h +1' :
+                    action === 'sleep' ? 'pm-sleep suspend' : 'systemctl suspend';
+        execFile('sh', ['-c', cmd], (error) => {
+          if (error) {
+            log.error('shutdown', error.message);
+            resolve(false);
+          } else {
+            resolve(true);
+          }
+        });
+      }
+    });
+  });
+
+  handle<boolean>(IPC.shutdownCancel, async () => {
+    log.info('shutdown', 'Cancelling scheduled shutdown');
+    const execFile = (await import('node:child_process')).execFile;
+
+    return new Promise<boolean>((resolve) => {
+      if (process.platform === 'win32') {
+        execFile('shutdown', ['/a'], () => resolve(true));
+      } else {
+        execFile('sh', ['-c', 'shutdown -c'], () => resolve(true));
+      }
+    });
+  });
 }

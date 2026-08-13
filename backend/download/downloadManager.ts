@@ -10,7 +10,8 @@ import type {
   JobProgressSnapshot,
   HistoryEntry,
   PlaylistInfo,
-  PlaylistVideo
+  PlaylistVideo,
+  ProxyConfig
 } from '@shared/types';
 import { buildDownloadArgs } from './formats.js';
 import { runYtDlp, humanizeYtDlpError } from './ytdlp.js';
@@ -49,6 +50,8 @@ export class DownloadManager extends EventEmitter {
   private maxConcurrentJobs = 1;
   private orderCounter = 0;
   private browserCookieSource: BrowserCookieSource = 'none';
+  private proxy: ProxyConfig | undefined;
+  private globalSpeedLimitKbps = 0;
 
   setMaxConcurrentJobs(n: number): void {
     this.maxConcurrentJobs = Math.min(4, Math.max(1, n));
@@ -57,6 +60,14 @@ export class DownloadManager extends EventEmitter {
 
   setBrowserCookieSource(source: BrowserCookieSource): void {
     this.browserCookieSource = source;
+  }
+
+  setProxy(proxy: ProxyConfig | undefined): void {
+    this.proxy = proxy;
+  }
+
+  setGlobalSpeedLimit(kbps: number): void {
+    this.globalSpeedLimitKbps = Math.max(0, kbps);
   }
 
   list(): DownloadJob[] {
@@ -419,7 +430,9 @@ export class DownloadManager extends EventEmitter {
         outputTemplate,
         options: job.options,
         ffmpegPath: resolveBinaries().ffmpeg,
-        browserCookieSource: this.browserCookieSource
+        browserCookieSource: this.browserCookieSource,
+        proxy: this.proxy,
+        globalSpeedLimitKbps: this.globalSpeedLimitKbps
       });
 
       const handle = runYtDlp(args, {

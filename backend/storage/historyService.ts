@@ -65,6 +65,23 @@ export class HistoryService {
     await fsp.writeFile(targetPath, `\uFEFF${lines.join('\r\n')}`, 'utf8');
     return targetPath;
   }
+
+  async exportJson(targetPath: string): Promise<string> {
+    const rows = this.list();
+    await fsp.writeFile(targetPath, JSON.stringify(rows, null, 2), 'utf8');
+    return targetPath;
+  }
+
+  search(query: string): HistoryEntry[] {
+    const q = query.toLowerCase().trim();
+    if (!q) return this.list();
+    return this.list().filter((e) =>
+      e.playlistTitle.toLowerCase().includes(q) ||
+      e.creator.toLowerCase().includes(q) ||
+      e.sourceUrl.toLowerCase().includes(q) ||
+      e.destination.toLowerCase().includes(q)
+    );
+  }
 }
 
 /** Quote a CSV field, escaping embedded quotes. */

@@ -1,4 +1,4 @@
-import type { BrowserCookieSource, PlaylistInfo, PlaylistVideo, VideoQuality } from '@shared/types';
+import type { BrowserCookieSource, PlaylistInfo, PlaylistVideo, ProxyConfig, VideoQuality } from '@shared/types';
 import { parseYouTubeUrl } from '../util/sanitize.js';
 import { estimateBytes } from '@shared/format';
 import { buildAnalyzeArgs } from '../download/formats.js';
@@ -65,7 +65,7 @@ export interface AnalyzeHandle {
  * Read a playlist (or a single video) into our domain model.
  * Uses `--flat-playlist` so even 5000-item playlists resolve in seconds.
  */
-export function analyzePlaylist(rawUrl: string, quality: VideoQuality, browserCookieSource: BrowserCookieSource = 'none'): AnalyzeHandle {
+export function analyzePlaylist(rawUrl: string, quality: VideoQuality, browserCookieSource: BrowserCookieSource = 'none', proxy?: ProxyConfig): AnalyzeHandle {
   const parsed = parseYouTubeUrl(rawUrl);
   if (!parsed.valid || !parsed.normalized) {
     return {
@@ -74,7 +74,7 @@ export function analyzePlaylist(rawUrl: string, quality: VideoQuality, browserCo
     };
   }
 
-  const { promise: raw, kill } = runYtDlpCollect(buildAnalyzeArgs(parsed.normalized, browserCookieSource));
+  const { promise: raw, kill } = runYtDlpCollect(buildAnalyzeArgs(parsed.normalized, browserCookieSource, proxy));
 
   const promise = raw.then((stdout) => {
     const trimmed = stdout.trim();

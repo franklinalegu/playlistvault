@@ -32,7 +32,12 @@ const FALLBACK: AppSettings = {
   keepHistoryDays: 365,
   recentDestinations: [],
   legalAcknowledged: false,
-  browserCookieSource: 'none'
+  browserCookieSource: 'none',
+  proxy: { enabled: false, type: 'http', host: '', port: 8080 },
+  globalSpeedLimitKbps: 0,
+  postDownloadAction: 'none',
+  keyboardShortcutsEnabled: true,
+  showSpeedInNotification: false
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
