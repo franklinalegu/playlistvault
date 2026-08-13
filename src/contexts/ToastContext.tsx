@@ -28,6 +28,13 @@ const ICONS: Record<ToastKind, JSX.Element> = {
   warning: <FiAlertTriangle className="h-5 w-5 text-amber-400" />
 };
 
+const EDGE: Record<ToastKind, string> = {
+  success: 'from-emerald-400/80',
+  error: 'from-rose-400/80',
+  info: 'from-sky-400/80',
+  warning: 'from-amber-400/80'
+};
+
 export function ToastProvider({ children }: { children: ReactNode }): JSX.Element {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -69,8 +76,11 @@ export function ToastProvider({ children }: { children: ReactNode }): JSX.Elemen
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, x: 40, scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              className="glass pointer-events-auto flex items-start gap-3 p-4"
+              className="glass pointer-events-auto relative flex items-start gap-3 overflow-hidden p-4 pl-5 shadow-glass-sm"
             >
+              <span
+                className={`absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b ${EDGE[t.kind]} to-transparent`}
+              />
               <div className="mt-0.5 shrink-0">{ICONS[t.kind]}</div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-white">{t.title}</p>

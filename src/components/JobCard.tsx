@@ -48,9 +48,12 @@ export function JobCard({
   return (
     <motion.article layout className="glass overflow-hidden">
       <div className="flex gap-4 p-4">
-        <div className="h-[62px] w-[110px] shrink-0 overflow-hidden rounded-lg bg-vault-800">
+        <div className="relative h-[62px] w-[110px] shrink-0 overflow-hidden rounded-lg bg-vault-800 shadow-inner">
           {job.playlistThumbnail && (
             <img src={job.playlistThumbnail} alt="" className="h-full w-full object-cover" />
+          )}
+          {job.status === 'downloading' && (
+            <span className="absolute inset-0 bg-gradient-to-t from-accent-500/25 to-transparent" />
           )}
         </div>
 

@@ -21,8 +21,11 @@ export function PageShell({
     >
       <div className="mb-7 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">{title}</h1>
-          {subtitle && <p className="mt-1.5 text-sm text-slate-400">{subtitle}</p>}
+          <div className="mb-2 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-gradient-to-br from-accent-400 to-sky-400 shadow-[0_0_8px_rgba(79,70,229,0.8)]" />
+            <h1 className="text-2xl font-semibold tracking-tight text-white">{title}</h1>
+          </div>
+          {subtitle && <p className="pl-4 text-sm text-slate-400">{subtitle}</p>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </div>
@@ -44,7 +47,9 @@ export function EmptyState({
 }): JSX.Element {
   return (
     <div className="glass flex flex-col items-center justify-center gap-3 px-8 py-16 text-center">
-      <div className="animate-floaty text-4xl text-slate-600">{icon}</div>
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-transparent text-slate-500 shadow-inner">
+        <span className="animate-floaty text-3xl">{icon}</span>
+      </div>
       <h3 className="text-base font-semibold text-slate-200">{title}</h3>
       <p className="max-w-sm text-sm leading-relaxed text-slate-500">{description}</p>
       {action && <div className="mt-2">{action}</div>}
@@ -67,16 +72,17 @@ export function ProgressBar({
       aria-valuenow={indeterminate ? undefined : Math.round(value)}
       aria-valuemin={0}
       aria-valuemax={100}
-      className={`relative h-1.5 w-full overflow-hidden rounded-full bg-white/10 ${className}`}
+      className={`relative h-1.5 w-full overflow-hidden rounded-full bg-white/10 shadow-inner ${className}`}
     >
       {indeterminate ? (
         <div className="skeleton absolute inset-0" />
       ) : (
         <motion.div
-          className="h-full rounded-full"
+          className="relative h-full rounded-full"
           style={{
             backgroundImage:
-              'linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #0ea5e9))'
+              'linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #0ea5e9))',
+            boxShadow: '0 0 10px rgba(79, 70, 229, 0.55)'
           }}
           initial={false}
           animate={{ width: `${Math.min(100, Math.max(0, value))}%` }}
@@ -119,8 +125,10 @@ export function Toggle({
         aria-label={label}
         disabled={disabled}
         onClick={() => !disabled && onChange(!checked)}
-        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
-          checked ? 'bg-accent' : 'bg-white/12 border border-white/10'
+        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-all duration-200 ${
+          checked
+            ? 'bg-gradient-to-r from-accent-500 to-accent-400 shadow-[0_0_12px_rgba(79,70,229,0.45)]'
+            : 'bg-white/12 border border-white/10'
         }`}
       >
         <motion.span
@@ -184,7 +192,7 @@ export function StatTile({
   hint?: string;
 }): JSX.Element {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-3">
+    <div className="surface px-3.5 py-3">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
       <p className="mt-1 text-lg font-semibold tabular-nums text-white">{value}</p>
       {hint && <p className="text-[11px] text-slate-500">{hint}</p>}
@@ -210,6 +218,17 @@ export function StatusPill({ status }: { status: string }): JSX.Element {
         styles[status] ?? styles.queued
       }`}
     >
+      <span
+        className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+          status === 'downloading'
+            ? 'animate-pulse-soft bg-accent-400'
+            : status === 'completed'
+              ? 'bg-emerald-400'
+              : status === 'failed'
+                ? 'bg-rose-400'
+                : 'bg-current opacity-50'
+        }`}
+      />
       {status}
     </span>
   );

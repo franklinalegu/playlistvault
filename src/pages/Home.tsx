@@ -194,7 +194,7 @@ export function Home(): JSX.Element {
           e.preventDefault();
           void runAnalysis(url);
         }}
-        className="glass mb-5 flex items-center gap-2 p-2"
+        className="group mb-5 flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.05] p-2 shadow-glass backdrop-blur-xl transition-all duration-200 focus-within:border-accent/50 focus-within:shadow-glow"
       >
         <FiLink className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
         <input

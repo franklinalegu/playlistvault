@@ -39,8 +39,13 @@ export default {
         xs: '2px'
       },
       boxShadow: {
-        glass: '0 8px 32px rgba(0, 0, 0, 0.35)',
-        glow: '0 0 0 1px rgba(79, 70, 229, 0.35), 0 8px 30px rgba(79, 70, 229, 0.25)'
+        glass: '0 10px 40px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3)',
+        'glass-sm': '0 4px 18px rgba(0, 0, 0, 0.32)',
+        glow: '0 0 0 1px rgba(79, 70, 229, 0.35), 0 8px 30px rgba(79, 70, 229, 0.25)',
+        'glow-lg':
+          '0 0 0 1px rgba(79, 70, 229, 0.4), 0 12px 44px rgba(79, 70, 229, 0.35), 0 0 48px rgba(79, 70, 229, 0.18)',
+        inner: 'inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+        'inner-lg': 'inset 0 1px 0 rgba(255, 255, 255, 0.09)'
       },
       keyframes: {
         shimmer: {
@@ -49,11 +54,21 @@ export default {
         floaty: {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-8px)' }
+        },
+        pulseSoft: {
+          '0%, 100%': { opacity: 1 },
+          '50%': { opacity: 0.45 }
+        },
+        fadeUp: {
+          '0%': { opacity: 0, transform: 'translateY(12px)' },
+          '100%': { opacity: 1, transform: 'translateY(0)' }
         }
       },
       animation: {
         shimmer: 'shimmer 1.8s infinite',
-        floaty: 'floaty 6s ease-in-out infinite'
+        floaty: 'floaty 6s ease-in-out infinite',
+        'pulse-soft': 'pulseSoft 2.2s ease-in-out infinite',
+        'fade-up': 'fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both'
       }
     }
   },

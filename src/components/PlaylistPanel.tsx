@@ -38,7 +38,7 @@ export function PlaylistPanel({
       className="glass overflow-hidden"
     >
       <div className="flex gap-5 p-5">
-        <div className="relative h-[104px] w-[186px] shrink-0 overflow-hidden rounded-xl bg-vault-800">
+        <div className="relative h-[104px] w-[186px] shrink-0 overflow-hidden rounded-xl bg-vault-800 shadow-glass-sm">
           {playlist.thumbnail ? (
             <img
               src={playlist.thumbnail}
@@ -51,6 +51,7 @@ export function PlaylistPanel({
               <FiVideo className="h-7 w-7" />
             </div>
           )}
+          <div className="absolute inset-0 bg-gradient-to-t from-vault-950/50 via-transparent to-transparent" />
           <div className="absolute inset-0 ring-1 ring-inset ring-white/10" />
         </div>
 
