@@ -227,6 +227,8 @@ export interface AppSettings {
   keyboardShortcutsEnabled: boolean;
   /** Show download speed in notification. */
   showSpeedInNotification: boolean;
+  /** True once the guided first-run wizard has been completed. */
+  firstRunComplete: boolean;
 }
 
 export type DependencyName = 'yt-dlp' | 'ffmpeg';

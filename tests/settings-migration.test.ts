@@ -78,4 +78,15 @@ describe('settings migration from v1', () => {
     const svc = new SettingsService(dir, '/downloads');
     expect(svc.get().defaultOptions.writeResourceManifest).toBe(true);
   });
+
+  it('guides a fresh install through first run', () => {
+    const svc = new SettingsService(dir, '/downloads');
+    expect(svc.get().firstRunComplete).toBe(false);
+  });
+
+  it('never re-runs the wizard for existing installs', () => {
+    writeV1();
+    const svc = new SettingsService(dir, '/downloads');
+    expect(svc.get().firstRunComplete).toBe(true);
+  });
 });

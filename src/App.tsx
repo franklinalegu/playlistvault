@@ -4,7 +4,7 @@ import { SettingsProvider } from '@/contexts/SettingsContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { QueueProvider } from '@/contexts/QueueContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { SetupGate } from '@/components/SetupGate';
+import { FirstRunWizard } from '@/components/FirstRunWizard';
 import { YtDlpUpdateNotice } from '@/components/YtDlpUpdateNotice';
 import { Sidebar } from '@/components/Sidebar';
 import { TitleBar } from '@/components/TitleBar';
@@ -23,7 +23,7 @@ export default function App(): JSX.Element {
             <YtDlpUpdateNotice />
             {/* HashRouter avoids file:// path issues in the packaged build. */}
             <HashRouter>
-              <SetupGate>
+              <FirstRunWizard>
               <div className="flex h-full">
                 <Sidebar />
                 <div className="flex min-w-0 flex-1 flex-col">
@@ -42,7 +42,7 @@ export default function App(): JSX.Element {
                   </main>
                 </div>
               </div>
-              </SetupGate>
+              </FirstRunWizard>
             </HashRouter>
           </QueueProvider>
         </SettingsProvider>

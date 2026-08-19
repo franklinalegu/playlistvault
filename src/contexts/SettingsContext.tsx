@@ -38,7 +38,8 @@ const FALLBACK: AppSettings = {
   globalSpeedLimitKbps: 0,
   postDownloadAction: 'none',
   keyboardShortcutsEnabled: true,
-  showSpeedInNotification: false
+  showSpeedInNotification: false,
+  firstRunComplete: true
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);

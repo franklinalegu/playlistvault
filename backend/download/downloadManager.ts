@@ -20,11 +20,19 @@ import { padIndex, sanitizeFilename, isSafeDestination } from '../util/sanitize.
 import { parseSourceUrl } from '../util/platform.js';
 import { findInfoJson, readVideoLinks, cleanupInfoJson, type VideoLinks } from '../manifest/linkExtractor.js';
 import { writeManifest } from '../manifest/manifestWriter.js';
+import { JsonStore } from '../storage/jsonStore.js';
 import { log } from '../util/logger.js';
 import { resolveBinaries } from '../ffmpeg/binaries.js';
 
 const MAX_ATTEMPTS = 3;
 const PROGRESS_THROTTLE_MS = 250;
+/** How often the queue is flushed to disk while jobs change. */
+const PERSIST_THROTTLE_MS = 1500;
+
+/** A job on disk: the job itself plus the per-video URLs needed to resume. */
+interface PersistedJob extends DownloadJob {
+  videos: PlaylistVideo[];
+}
 
 interface ActiveProcess {
   kill: (signal?: NodeJS.Signals) => void;
@@ -54,6 +62,14 @@ export class DownloadManager extends EventEmitter {
   private cookiesFile?: string;
   private proxy: ProxyConfig | undefined;
   private globalSpeedLimitKbps = 0;
+  private readonly store?: JsonStore<PersistedJob[]>;
+  private lastPersist = 0;
+
+  /** `queuePath` enables persisting the queue so restarts can resume it. */
+  constructor(queuePath?: string) {
+    super();
+    if (queuePath) this.store = new JsonStore<PersistedJob[]>(queuePath, []);
+  }
 
   setMaxConcurrentJobs(n: number): void {
     this.maxConcurrentJobs = Math.min(4, Math.max(1, n));
@@ -82,6 +98,78 @@ export class DownloadManager extends EventEmitter {
 
   get(jobId: string): DownloadJob | undefined {
     return this.jobs.get(jobId);
+  }
+
+  /**
+   * Restore the queue saved by a previous session. Runs synchronously at
+   * startup so the very first `list()` call already includes it.
+   *
+   * Anything mid-flight is parked: jobs come back paused and items queued,
+   * so nothing resumes and hammers the network without the user asking.
+   * yt-dlp continues `.part` files, so a resumed item picks up where it died.
+   */
+  load(): void {
+    if (!this.store) return;
+    const persisted = this.store.read();
+    let maxOrder = this.orderCounter;
+
+    for (const raw of persisted) {
+      if (!raw || typeof raw !== 'object' || !raw.id || !Array.isArray(raw.items) || !Array.isArray(raw.videos)) {
+        continue;
+      }
+      const job = this.fromPersisted(raw);
+      this.jobs.set(job.id, job);
+      this.urlIndex.set(job.id, new Map(raw.videos.map((v) => [v.id, v])));
+      maxOrder = Math.max(maxOrder, job.order);
+    }
+
+    this.orderCounter = maxOrder + 1;
+    if (persisted.length > 0) {
+      log.info('queue', `restored ${persisted.length} job(s) from the previous session`);
+    }
+  }
+
+  /** Rebuild a live job from disk, mapping mid-flight statuses to resumable ones. */
+  private fromPersisted(raw: PersistedJob): DownloadJob {
+    const wasActive =
+      raw.status === 'downloading' || raw.status === 'queued' || raw.status === 'paused' || raw.status === 'converting';
+    const items = raw.items.map((item) => {
+      const resumable = item.status === 'downloading' || item.status === 'converting';
+      return {
+        ...item,
+        status: resumable ? 'queued' : item.status,
+        progress: resumable ? 0 : item.progress,
+        speedBytesPerSecond: 0,
+        etaSeconds: 0,
+        // A mid-download item has no final output yet; the .part resumes it.
+        finalPathKnown: false
+      };
+    });
+    return { ...raw, status: wasActive ? 'paused' : raw.status, items };
+  }
+
+  /** Serialise one job (with its video URLs) for storage. */
+  private toPersisted(job: DownloadJob): PersistedJob {
+    return { ...job, videos: [...(this.urlIndex.get(job.id)?.values() ?? [])] };
+  }
+
+  /** Persist the queue, throttled so a long playlist doesn't spam the disk. */
+  private persist(): void {
+    if (!this.store) return;
+    const now = Date.now();
+    if (now - this.lastPersist < PERSIST_THROTTLE_MS) return;
+    this.lastPersist = now;
+    void this.writeQueue();
+  }
+
+  /** Write the queue immediately (used at shutdown so nothing is lost). */
+  flush(): void {
+    if (this.store) void this.writeQueue();
+  }
+
+  private writeQueue(): Promise<void> {
+    if (!this.store) return Promise.resolve();
+    return this.store.write([...this.jobs.values()].map((job) => this.toPersisted(job)));
   }
 
   /** Queue a playlist. Returns immediately; work happens in the background. */
@@ -228,6 +316,7 @@ export class DownloadManager extends EventEmitter {
       if (job) job.order = i;
     });
     this.orderCounter = Math.max(this.orderCounter, jobIds.length);
+    this.persist();
     void this.pump();
   }
 
@@ -238,6 +327,7 @@ export class DownloadManager extends EventEmitter {
         this.urlIndex.delete(id);
       }
     }
+    this.persist();
   }
 
   /** Start any jobs that are eligible to run. */
@@ -648,6 +738,8 @@ export class DownloadManager extends EventEmitter {
     if (!force && now - last < PROGRESS_THROTTLE_MS) return;
     this.lastEmit.set(job.id, now);
     this.emit('progress', this.snapshot(job));
+    // Force emits happen exactly when job structure changes; keep the disk copy fresh.
+    if (force) this.persist();
   }
 
   private touch(job: DownloadJob): void {
@@ -658,6 +750,7 @@ export class DownloadManager extends EventEmitter {
   shutdown(): void {
     for (const proc of this.active.values()) proc.kill();
     this.active.clear();
+    this.flush();
   }
 }
 

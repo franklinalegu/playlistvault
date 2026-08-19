@@ -114,7 +114,8 @@ app.whenReady().then(() => {
 
   const settings = new SettingsService(userData, downloadsDir);
   const history = new HistoryService(userData);
-  downloadManager = new DownloadManager();
+  downloadManager = new DownloadManager(path.join(userData, 'queue.json'));
+  downloadManager.load();
   downloadManager.setMaxConcurrentJobs(settings.get().maxConcurrentJobs);
   downloadManager.setBrowserCookieSource(settings.get().browserCookieSource);
   downloadManager.setCookiesFile(settings.get().cookiesFile);

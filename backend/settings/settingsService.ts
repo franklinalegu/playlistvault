@@ -1,10 +1,16 @@
 import path from 'node:path';
+import fs from 'node:fs';
 import { JsonStore } from '../storage/jsonStore.js';
 import { DEFAULT_DOWNLOAD_OPTIONS, type AppSettings } from '@shared/types';
 import { isSafeDestination } from '../util/sanitize.js';
 import { setBinaryOverrides } from '../ffmpeg/binaries.js';
 
-export function createDefaultSettings(downloadsDir: string): AppSettings {
+/**
+ * @param firstRunComplete Existing installs have already been set up, so they
+ * are marked complete up front and never see the guided wizard again. A fresh
+ * install gets `false` so the wizard guides it once.
+ */
+export function createDefaultSettings(downloadsDir: string, firstRunComplete = true): AppSettings {
   return {
     theme: 'dark',
     accentColor: '#4F46E5',
@@ -33,7 +39,8 @@ export function createDefaultSettings(downloadsDir: string): AppSettings {
     globalSpeedLimitKbps: 0,
     postDownloadAction: 'none',
     keyboardShortcutsEnabled: true,
-    showSpeedInNotification: false
+    showSpeedInNotification: false,
+    firstRunComplete
   };
 }
 
@@ -41,8 +48,10 @@ export class SettingsService {
   private readonly store: JsonStore<AppSettings>;
 
   constructor(userDataPath: string, downloadsDir: string) {
-    const defaults = createDefaultSettings(downloadsDir);
-    this.store = new JsonStore<AppSettings>(path.join(userDataPath, 'settings.json'), defaults);
+    const settingsPath = path.join(userDataPath, 'settings.json');
+    const isFreshInstall = !fs.existsSync(settingsPath);
+    const defaults = createDefaultSettings(downloadsDir, !isFreshInstall);
+    this.store = new JsonStore<AppSettings>(settingsPath, defaults);
     void this.migrate(defaults);
     this.applySideEffects(this.store.read());
   }
