@@ -246,6 +246,13 @@ export interface BinaryStatus {
   error?: string;
 }
 
+/** Whether the installed yt-dlp is behind the newest release. */
+export interface YtDlpUpdateStatus {
+  current: string | null;
+  latest: string | null;
+  outdated: boolean;
+}
+
 export interface AppInfo {
   version: string;
   electron: string;
@@ -320,6 +327,7 @@ export const IPC = {
   appInstallDependency: 'app:install-dependency',
   appOpenLog: 'app:open-log',
   appDependencyProgress: 'app:dependency-progress',
+  ytdlpCheckUpdate: 'ytdlp:check-update',
   authTest: 'auth:test',
   updateCheck: 'update:check',
   updateInstall: 'update:install',

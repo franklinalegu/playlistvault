@@ -19,6 +19,34 @@ describe('parseSourceUrl', () => {
     expect(r.kind).toBe('video');
   });
 
+  it('routes @handle channel URLs as channels', () => {
+    const r = parseSourceUrl('https://www.youtube.com/@SomeChannel');
+    expect(r.valid).toBe(true);
+    expect(r.platform).toBe('youtube');
+    expect(r.kind).toBe('channel');
+    expect(r.normalized).toBe('https://www.youtube.com/@SomeChannel');
+  });
+
+  it('routes /channel/UC… URLs as channels', () => {
+    const r = parseSourceUrl('https://www.youtube.com/channel/UCabc123xyz');
+    expect(r.valid).toBe(true);
+    expect(r.kind).toBe('channel');
+    expect(r.normalized).toBe('https://www.youtube.com/channel/UCabc123xyz');
+  });
+
+  it('routes /c/name URLs as channels', () => {
+    const r = parseSourceUrl('https://www.youtube.com/c/SomeLegacyName');
+    expect(r.valid).toBe(true);
+    expect(r.kind).toBe('channel');
+  });
+
+  it('keeps a videos-tab suffix on channel URLs', () => {
+    const r = parseSourceUrl('https://www.youtube.com/@SomeChannel/videos');
+    expect(r.valid).toBe(true);
+    expect(r.kind).toBe('channel');
+    expect(r.normalized).toBe('https://www.youtube.com/@SomeChannel/videos');
+  });
+
   it('routes Udemy courses', () => {
     const r = parseSourceUrl('https://www.udemy.com/course/python-bootcamp/');
     expect(r.valid).toBe(true);

@@ -4,7 +4,7 @@ import type { SourcePlatform } from '@shared/types';
 export interface ParsedSourceUrl {
   valid: boolean;
   platform: SourcePlatform;
-  kind: 'playlist' | 'video' | 'unknown';
+  kind: 'playlist' | 'video' | 'channel' | 'unknown';
   playlistId?: string;
   videoId?: string;
   normalized?: string;
@@ -53,7 +53,9 @@ export function parseSourceUrl(raw: string): ParsedSourceUrl {
   return {
     valid: true,
     platform: 'youtube',
-    kind: youtube.kind === 'playlist' ? 'playlist' : youtube.kind === 'channel' ? 'playlist' : 'video',
+    // A channel has no explicit playlist, but yt-dlp enumerates its uploads as
+    // one — keep the kind distinct so callers can label or filter it.
+    kind: youtube.kind === 'playlist' ? 'playlist' : youtube.kind === 'channel' ? 'channel' : 'video',
     playlistId: youtube.playlistId,
     videoId: youtube.videoId,
     normalized: youtube.normalized

@@ -140,6 +140,14 @@ export function humanizeYtDlpError(stderr: string, code: number | null): string 
   if (text.includes('ffmpeg')) {
     return 'FFmpeg failed while merging. Open Settings → Dependencies to verify your FFmpeg install.';
   }
+  if (
+    text.includes('unsupported url') ||
+    text.includes('no longer supports') ||
+    text.includes('outdated version') ||
+    text.includes('requires a newer version')
+  ) {
+    return 'yt-dlp is out of date and can no longer read this link. Update it in Settings → Dependencies.';
+  }
   if (text.includes('udemy')) {
     if (text.includes('enroll') || text.includes('403') || text.includes('not purchased') || text.includes('not enrolled')) {
       return 'This Udemy course requires an active enrollment. Sign in with the account that purchased it, then retry.';

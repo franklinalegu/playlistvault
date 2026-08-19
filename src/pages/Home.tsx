@@ -187,7 +187,7 @@ export function Home(): JSX.Element {
   return (
     <PageShell
       title="Download a playlist"
-      subtitle="Paste a YouTube or Udemy playlist, course or video link to get started."
+      subtitle="Paste a YouTube or Udemy playlist, course, video — or a whole YouTube channel — to get started."
     >
       <form
         onSubmit={(e) => {
@@ -200,7 +200,7 @@ export function Home(): JSX.Element {
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://www.udemy.com/course/… or a YouTube playlist"
+          placeholder="https://www.udemy.com/course/…, a YouTube playlist, or a channel"
           aria-label="Playlist URL"
           autoFocus
           spellCheck={false}

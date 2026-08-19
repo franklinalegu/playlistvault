@@ -9,7 +9,8 @@ import type {
   DownloadJob,
   HistoryEntry,
   PlaylistInfo,
-  StartJobRequest
+  StartJobRequest,
+  YtDlpUpdateStatus
 } from '@shared/types';
 import { IPC } from '@shared/types';
 import type { SettingsService } from '@backend/settings/settingsService.js';
@@ -19,6 +20,7 @@ import { analyzePlaylist, type AnalyzeHandle } from '@backend/playlist/analyzer.
 import { checkBinaries } from '@backend/ffmpeg/binaries.js';
 import { log } from '@backend/util/logger.js';
 import { installDependency } from '@backend/setup/dependencyInstaller.js';
+import { checkYtDlpUpdate } from '@backend/setup/ytDlpUpdater.js';
 import { isSafeDestination } from '@backend/util/sanitize.js';
 import { parseSourceUrl } from '@backend/util/platform.js';
 import { checkForUpdates, installUpdate } from './updater.js';
@@ -298,6 +300,7 @@ export function registerIpcHandlers(deps: Deps): void {
   handle<string>(IPC.appInstallDependency, (name: DependencyName) =>
     installDependency(name, (progress) => send(IPC.appDependencyProgress, progress))
   );
+  handle<YtDlpUpdateStatus>(IPC.ytdlpCheckUpdate, () => checkYtDlpUpdate());
   handle<boolean>(IPC.updateCheck, async () => (await checkForUpdates(true), true));
   handle<boolean>(IPC.updateInstall, () => (installUpdate(), true));
 

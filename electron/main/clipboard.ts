@@ -6,9 +6,9 @@ import type { SettingsService } from '@backend/settings/settingsService.js';
 const POLL_MS = 1500;
 
 /**
- * Optional clipboard monitoring: when enabled, copying a playlist or course
- * link anywhere on the system offers to analyze it. We only ever read the
- * clipboard while the setting is on, and only forward links that pass
+ * Optional clipboard monitoring: when enabled, copying a playlist, course or
+ * channel link anywhere on the system offers to analyze it. We only ever read
+ * the clipboard while the setting is on, and only forward links that pass
  * validation.
  */
 export function startClipboardWatcher(
@@ -31,7 +31,7 @@ export function startClipboardWatcher(
     lastSeen = text;
 
     const parsed = parseSourceUrl(text);
-    if (!parsed.valid || parsed.kind !== 'playlist' || !parsed.normalized) return;
+    if (!parsed.valid || (parsed.kind !== 'playlist' && parsed.kind !== 'channel') || !parsed.normalized) return;
 
     const win = getWindow();
     if (win && !win.isDestroyed()) {

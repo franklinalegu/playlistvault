@@ -62,7 +62,9 @@ export interface AnalyzeHandle {
 }
 
 /**
- * Read a playlist (or a single video) into our domain model.
+ * Read a playlist, a YouTube channel (its uploads enumerate as a playlist
+ * even when the channel has no explicit playlist), or a single video into our
+ * domain model.
  * Uses `--flat-playlist` so even 5000-item playlists resolve in seconds.
  * YouTube keeps the flat path; Udemy courses are listed flat too, while each
  * lecture is later resolved through its course for full chapter context.

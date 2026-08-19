@@ -13,7 +13,8 @@ import type {
   JobProgressSnapshot,
   PlaylistInfo,
   StartJobRequest,
-  UpdateState
+  UpdateState,
+  YtDlpUpdateStatus
 } from '@shared/types';
 
 /**
@@ -87,6 +88,8 @@ const api = {
     info: (): Promise<ApiResult<AppInfo>> => ipcRenderer.invoke(IPC.appInfo),
     checkBinaries: (): Promise<ApiResult<BinaryStatus[]>> =>
       ipcRenderer.invoke(IPC.appCheckBinaries),
+    checkYtDlpUpdate: (): Promise<ApiResult<YtDlpUpdateStatus>> =>
+      ipcRenderer.invoke(IPC.ytdlpCheckUpdate),
     testAuth: (): Promise<ApiResult<string>> => ipcRenderer.invoke(IPC.authTest),
     installDependency: (name: DependencyName): Promise<ApiResult<string>> =>
       ipcRenderer.invoke(IPC.appInstallDependency, name),
