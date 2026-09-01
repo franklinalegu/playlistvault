@@ -146,34 +146,40 @@ export default async function handler(req, res) {
       : findWindowsInstaller(release.assets, format);
     if (!asset) throw new Error('No installer asset in the latest release');
 
-    // With a token the browser can't follow browser_download_url directly on a
-    // private repo, so stream through the authenticated API URL instead.
+    // Always serve from our domain (/download) so the button downloads
+    // directly without showing github.com. Proxy the bytes from GitHub.
     const target = process.env.GITHUB_TOKEN
       ? asset.url
       : asset.browser_download_url;
+    const useAuth = !!process.env.GITHUB_TOKEN;
+    const bin = await fetch(target, {
+      headers: useAuth
+        ? { ...headers, Accept: 'application/octet-stream' }
+        : { 'User-Agent': 'playlistvault-site' },
+      redirect: 'follow'
+    });
+    if (!bin.ok) throw new Error(`Asset fetch returned ${bin.status}`);
 
-    if (process.env.GITHUB_TOKEN) {
-      // Proxy the bytes: the asset URL needs an Authorization header the
-      // browser will not send.
-      const bin = await fetch(target, {
-        headers: { ...headers, Accept: 'application/octet-stream' },
-        redirect: 'follow'
-      });
-      if (!bin.ok) throw new Error(`Asset fetch returned ${bin.status}`);
-
-      res.setHeader('Content-Type', 'application/octet-stream');
-      res.setHeader('Content-Disposition', `attachment; filename="${asset.name}"`);
-      if (bin.headers.get('content-length')) {
-        res.setHeader('Content-Length', bin.headers.get('content-length'));
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${asset.name}"`);
+    if (bin.headers.get('content-length')) {
+      res.setHeader('Content-Length', bin.headers.get('content-length'));
+    }
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    // Stream to avoid loading 160MB into memory
+    if (bin.body && typeof bin.body.getReader === 'function') {
+      const reader = bin.body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(Buffer.from(value));
       }
-      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.end();
+    } else {
       const buf = Buffer.from(await bin.arrayBuffer());
       res.status(200).send(buf);
-      return;
     }
-
-    res.setHeader('Cache-Control', 'public, max-age=300');
-    res.redirect(302, target);
+    return;
   } catch (error) {
     // Never leave the user staring at an error page — send them the last
     // build we know exists and record why.
@@ -206,22 +212,31 @@ async function handleAndroid(req, res) {
     const apk = findAndroidApk(release.assets);
     if (!apk) throw new Error('No APK asset in the latest release');
     const target = process.env.GITHUB_TOKEN ? apk.url : apk.browser_download_url;
-    if (process.env.GITHUB_TOKEN) {
-      const bin = await fetch(target, {
-        headers: { ...headers, Accept: 'application/octet-stream' },
-        redirect: 'follow'
-      });
-      if (!bin.ok) throw new Error(`Asset fetch returned ${bin.status}`);
-      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-      res.setHeader('Content-Disposition', `attachment; filename="${apk.name}"`);
-      if (bin.headers.get('content-length')) res.setHeader('Content-Length', bin.headers.get('content-length'));
-      res.setHeader('Cache-Control', 'public, max-age=300');
+    const useAuth = !!process.env.GITHUB_TOKEN;
+    const bin = await fetch(target, {
+      headers: useAuth
+        ? { ...headers, Accept: 'application/octet-stream' }
+        : { 'User-Agent': 'playlistvault-site' },
+      redirect: 'follow'
+    });
+    if (!bin.ok) throw new Error(`Asset fetch returned ${bin.status}`);
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.setHeader('Content-Disposition', `attachment; filename="${apk.name}"`);
+    if (bin.headers.get('content-length')) res.setHeader('Content-Length', bin.headers.get('content-length'));
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    if (bin.body && typeof bin.body.getReader === 'function') {
+      const reader = bin.body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(Buffer.from(value));
+      }
+      res.end();
+    } else {
       const buf = Buffer.from(await bin.arrayBuffer());
       res.status(200).send(buf);
-      return;
     }
-    res.setHeader('Cache-Control', 'public, max-age=300');
-    res.redirect(302, target);
+    return;
   } catch (error) {
     console.error('[download:android] falling back:', error.message);
     res.setHeader('Cache-Control', 'no-store');
