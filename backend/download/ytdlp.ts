@@ -92,19 +92,37 @@ export function runYtDlpCollect(
     }
   });
 
-  const promise = handle.done.then(({ code, stderr }) => {
-    if (code !== 0) {
-      throw new Error(humanizeYtDlpError(stderr, code));
-    }
-    return lines.join('\n');
-  });
+  const promise = handle.done
+    .then(({ code, stderr }) => {
+      if (code !== 0) {
+        throw new Error(humanizeYtDlpError(stderr, code));
+      }
+      return lines.join('\n');
+    })
+    .catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Spawn failures (ENOENT etc.) reject instead of resolving — humanize them too.
+      throw new Error(humanizeYtDlpError(msg, -1));
+    });
 
   return { promise, kill: () => handle.kill() };
 }
 
 /** Translate yt-dlp's stderr into something a normal person can act on. */
 export function humanizeYtDlpError(stderr: string, code: number | null): string {
+  // Windows often surfaces -1 as 4294967295 (0xFFFFFFFF unsigned). Normalize.
+  const normalizedCode = code === 4294967295 ? -1 : code;
   const text = (stderr || '').toLowerCase();
+  const hasStderr = text.trim().length > 0;
+
+  // Empty stderr + non-zero exit (spawn killed / crashed) — the raw
+  // "exit code 4294967295" is useless to users; give an actionable message.
+  if (!hasStderr && normalizedCode !== 0 && normalizedCode !== null) {
+    if (normalizedCode === -1) {
+      return 'yt-dlp failed to start (exit code 4294967295). This usually means the binary is missing, blocked by antivirus, or crashed. Open Settings → Dependencies to reinstall yt-dlp, then retry. If it persists, open the log file for details.';
+    }
+    return `yt-dlp exited unexpectedly (exit code ${normalizedCode}). Try updating yt-dlp in Settings → Dependencies and retry. If the link contains &list=, try it as a single video (remove &list=).`;
+  }
 
   if (text.includes('enoent') || text.includes('not recognized')) {
     return 'yt-dlp was not found. Open Settings → Dependencies to install or locate it.';
@@ -176,5 +194,9 @@ export function humanizeYtDlpError(stderr: string, code: number | null): string 
     .pop();
 
   if (lastLine) return lastLine.replace(/^ERROR:\s*/, '');
-  return `Download failed (exit code ${code ?? 'unknown'}).`;
+  // Fallback — never surface raw 4294967295 to users.
+  if (normalizedCode === 4294967295 || normalizedCode === -1) {
+    return 'yt-dlp failed to start. Open Settings → Dependencies to verify yt-dlp is installed, then retry. If the URL contains &list=, try removing it to download the single video.';
+  }
+  return `Download failed (exit code ${normalizedCode ?? 'unknown'}). Try updating yt-dlp in Settings → Dependencies and check the log file for details.`;
 }

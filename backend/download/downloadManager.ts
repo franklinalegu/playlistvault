@@ -787,7 +787,7 @@ function describeDestinationError(error: unknown, destination: string): string {
 }
 
 function isPermanentFailure(message: string): boolean {
-  return /private|members-only|unavailable|removed|age-restricted|not allowed|out of free space|Permission denied|was not found|read-only|too long for Windows|sign in to confirm|not a bot|confirm you.*are not a bot|could not copy.*cookie|http error 403|403: forbidden|forbidden.*denied|unsupported url|no longer supports|outdated version|requires a newer version|signature solving|n challenge solving|only images are available|po token|visitor data|yt-dlp is out of date|browser sign-in required/i.test(
+  return /private|members-only|unavailable|removed|age-restricted|not allowed|out of free space|Permission denied|was not found|read-only|too long for Windows|sign in to confirm|not a bot|confirm you.*are not a bot|could not copy.*cookie|http error 403|403: forbidden|forbidden.*denied|unsupported url|no longer supports|outdated version|requires a newer version|signature solving|n challenge solving|only images are available|po token|visitor data|yt-dlp is out of date|browser sign-in required|failed to start|exited unexpectedly/i.test(
     message
   );
 }

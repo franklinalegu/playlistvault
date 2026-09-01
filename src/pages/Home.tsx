@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FiAlertCircle, FiDownload, FiLink, FiSearch, FiUpload, FiX } from 'react-icons/fi';
+import { FiAlertCircle, FiCopy, FiDownload, FiExternalLink, FiLink, FiSearch, FiSettings, FiUpload, FiX } from 'react-icons/fi';
 import type { DownloadOptions, PlaylistInfo } from '@shared/types';
 import { estimateBytes } from '@shared/format';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -272,12 +272,87 @@ export function Home(): JSX.Element {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="glass flex items-start gap-3 border-rose-500/25 bg-rose-500/[0.07] p-5"
+            className="glass flex flex-col gap-3 border-rose-500/25 bg-rose-500/[0.07] p-5"
           >
-            <FiAlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-400" />
-            <div>
-              <p className="text-sm font-semibold text-rose-200">Could not read that link</p>
-              <p className="mt-1 text-xs leading-relaxed text-rose-200/70">{error}</p>
+            <div className="flex items-start gap-3">
+              <FiAlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-400" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-rose-200">Could not read that link</p>
+                <p className="mt-1 break-words text-xs leading-relaxed text-rose-200/70">{error}</p>
+                {(() => {
+                  const looksLikeWatchWithList = /youtube\.com\/watch\?[^ ]*v=.*[&?]list=|youtu\.be\/[^?]+\?[^ ]*list=/i.test(url);
+                  if (!looksLikeWatchWithList) return null;
+                  return (
+                    <p className="mt-2 text-xs text-amber-200/80">
+                      This looks like a single video inside a playlist. By design that URL is treated as a playlist. Remove <code className="rounded bg-white/10 px-1">&amp;list=</code> to download just this video.
+                    </p>
+                  );
+                })()}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(() => {
+                const isWatchWithList = /youtube\.com\/watch\?[^ ]*v=.*[&?]list=|youtu\.be\/[^?]+\?[^ ]*list=/i.test(url);
+                const stripList = (u: string): string => {
+                  try {
+                    const parsed = new URL(u);
+                    parsed.searchParams.delete('list');
+                    parsed.searchParams.delete('index');
+                    return parsed.toString();
+                  } catch { return u.replace(/[&?]list=[^&]+/i, '').replace(/[&?]index=[^&]+/i, ''); }
+                };
+                return (
+                  <>
+                    {isWatchWithList && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const single = stripList(url);
+                          setUrl(single);
+                          void runAnalysis(single);
+                        }}
+                        className="btn-ghost border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200 hover:bg-amber-500/20"
+                      >
+                        Try as single video
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try { await navigator.clipboard.writeText(error); success('Copied', 'Error copied to clipboard'); } catch { toastError('Copy failed', error); }
+                      }}
+                      className="btn-ghost px-3 py-1 text-xs"
+                    >
+                      <FiCopy className="h-3 w-3" /> Copy error
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void window.vault.system.openLog().then(r => { if (!r.ok) toastError('Could not open log', r.error); })}
+                      className="btn-ghost px-3 py-1 text-xs"
+                    >
+                      <FiExternalLink className="h-3 w-3" /> Open log
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/settings')}
+                      className="btn-ghost px-3 py-1 text-xs"
+                    >
+                      <FiSettings className="h-3 w-3" /> Open Settings
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const res = await window.vault.system.installDependency('yt-dlp');
+                        if (res.ok) success('yt-dlp updated', 'Retry analyzing the link');
+                        else toastError('Update failed', res.error);
+                      }}
+                      className="btn-ghost px-3 py-1 text-xs"
+                    >
+                      Update yt-dlp
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           </motion.div>
         )}
