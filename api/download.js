@@ -33,9 +33,9 @@ const REPO = process.env.GITHUB_REPO || 'franklinalegu/playlistvault';
 // Last known-good build, used only if the API is unreachable so the button
 // degrades to "slightly stale" rather than "broken".
 const FALLBACK =
-  'https://github.com/franklinalegu/playlistvault/releases/download/v5.2.3/PlaylistVault-5.2.3-x64.exe';
+  'https://github.com/franklinalegu/playlistvault/releases/download/v5.2.4/PlaylistVault-5.2.4-x64.exe';
 const FALLBACK_MAC = 'https://github.com/franklinalegu/playlistvault/releases/latest';
-const FALLBACK_ANDROID = 'https://github.com/franklinalegu/playlistvault/releases/latest/download/app-release.apk';
+const FALLBACK_ANDROID = 'https://github.com/franklinalegu/playlistvault/releases/latest';
 
 /** Pick the Windows installer from a release's assets. */
 function findInstaller(assets) {
