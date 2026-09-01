@@ -103,9 +103,12 @@ export function buildDownloadArgs(params: {
     args.push('--limit-rate', `${options.rateLimitKbps}K`);
   }
 
-  // Proxy support
+  // Proxy support — include auth if provided (was silently dropped)
   if (proxy?.enabled && proxy.host && proxy.port) {
-    const proxyUrl = `${proxy.type}://${proxy.host}:${proxy.port}`;
+    const auth = proxy.username
+      ? `${encodeURIComponent(proxy.username)}:${encodeURIComponent(proxy.password ?? '')}@`
+      : '';
+    const proxyUrl = `${proxy.type}://${auth}${proxy.host}:${proxy.port}`;
     args.push('--proxy', proxyUrl);
   }
 
@@ -158,7 +161,10 @@ export function buildAnalyzeArgs(
   if (browserCookieSource !== 'none') args.push('--cookies-from-browser', browserCookieSource);
   if (cookiesFile) args.push('--cookies', cookiesFile);
   if (proxy?.enabled && proxy.host && proxy.port) {
-    const proxyUrl = `${proxy.type}://${proxy.host}:${proxy.port}`;
+    const auth = proxy.username
+      ? `${encodeURIComponent(proxy.username)}:${encodeURIComponent(proxy.password ?? '')}@`
+      : '';
+    const proxyUrl = `${proxy.type}://${auth}${proxy.host}:${proxy.port}`;
     args.push('--proxy', proxyUrl);
   }
   args.push(url);

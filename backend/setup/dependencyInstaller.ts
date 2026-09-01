@@ -136,30 +136,58 @@ async function download(
   target: string,
   onProgress: (percent: number, detail: string) => void
 ): Promise<void> {
-  const response = await fetch(url, { redirect: 'follow' });
-  if (!response.ok || !response.body) {
-    throw new Error(`Server returned ${response.status} ${response.statusText}`);
+  const maxAttempts = 3;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120_000);
+    try {
+      const response = await fetch(url, {
+        redirect: 'follow',
+        signal: controller.signal,
+        headers: { 'User-Agent': 'PlaylistVault/5.2 dependency-installer' }
+      });
+      if (!response.ok || !response.body) {
+        throw new Error(`Server returned ${response.status} ${response.statusText}`);
+      }
+
+      const totalBytes = Number(response.headers.get('content-length') ?? 0);
+      let received = 0;
+      let lastReport = 0;
+
+      const source = Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]);
+
+      source.on('data', (chunk: Buffer) => {
+        received += chunk.length;
+        const now = Date.now();
+        // Throttle so the IPC channel isn't flooded on a fast connection.
+        if (now - lastReport < 200) return;
+        lastReport = now;
+
+        const percent = totalBytes > 0 ? Math.min(99, (received / totalBytes) * 100) : 0;
+        onProgress(percent, formatProgress(received, totalBytes));
+      });
+
+      await pipeline(source, fs.createWriteStream(target));
+      onProgress(100, formatProgress(received, totalBytes || received));
+      return;
+    } catch (error) {
+      lastError = error;
+      // Clean partial file before retry
+      await fsp.rm(target, { force: true }).catch(() => undefined);
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      const msg = error instanceof Error ? error.message : String(error);
+      const retryable = isAbort || /fetch failed|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ENETUNREACH|ECONNRESET|Server returned 5\d\d/i.test(msg);
+      if (!retryable || attempt === maxAttempts) break;
+      const backoff = 1000 * attempt;
+      await new Promise((r) => setTimeout(r, backoff));
+      onProgress(0, `Retrying (${attempt}/${maxAttempts - 1})…`);
+    } finally {
+      clearTimeout(timeout);
+    }
   }
-
-  const totalBytes = Number(response.headers.get('content-length') ?? 0);
-  let received = 0;
-  let lastReport = 0;
-
-  const source = Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]);
-
-  source.on('data', (chunk: Buffer) => {
-    received += chunk.length;
-    const now = Date.now();
-    // Throttle so the IPC channel isn't flooded on a fast connection.
-    if (now - lastReport < 200) return;
-    lastReport = now;
-
-    const percent = totalBytes > 0 ? Math.min(99, (received / totalBytes) * 100) : 0;
-    onProgress(percent, formatProgress(received, totalBytes));
-  });
-
-  await pipeline(source, fs.createWriteStream(target));
-  onProgress(100, formatProgress(received, totalBytes || received));
+  throw lastError;
 }
 
 function formatProgress(received: number, total: number): string {

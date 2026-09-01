@@ -45,11 +45,29 @@ describe('DownloadManager queue persistence', () => {
       options: { ...DEFAULT_DOWNLOAD_OPTIONS }
     });
 
-    // Simulate a crash while one item was actively downloading.
-    job.items[0].status = 'downloading';
-    job.items[0].progress = 62;
-    first.flush();
-    await new Promise((r) => setTimeout(r, 50));
+    // Stop any background runJob that enqueue() kicked off (yt-dlp may be missing)
+    // and force a synchronous persist before patching.
+    first.shutdown();
+    await (first as unknown as { writeQueue: () => Promise<void> }).writeQueue();
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Simulate a crash while one item was actively downloading — patch the
+    // persisted file directly so the test is deterministic regardless of binary
+    // availability or async pump timing. Overwrite all items to known queued
+    // states, otherwise a racing runJob may have already marked them failed.
+    const raw = JSON.parse(fs.readFileSync(queuePath, 'utf8')) as unknown[];
+    const persisted = raw[0] as Record<string, unknown>;
+    (persisted as { status: string }).status = 'downloading';
+    const items = persisted.items as Array<Record<string, unknown>>;
+    for (const it of items) {
+      (it as { status: string }).status = 'queued';
+      (it as { progress: number }).progress = 0;
+      (it as { error: unknown }).error = undefined;
+      (it as { attempts: number }).attempts = 0;
+    }
+    (items[0] as { status: string }).status = 'downloading';
+    (items[0] as { progress: number }).progress = 62;
+    fs.writeFileSync(queuePath, JSON.stringify(raw));
 
     const second = new DownloadManager(queuePath);
     second.load();
@@ -74,8 +92,9 @@ describe('DownloadManager queue persistence', () => {
       destination: dir,
       options: { ...DEFAULT_DOWNLOAD_OPTIONS }
     });
-    first.flush();
-    await new Promise((r) => setTimeout(r, 50));
+    first.shutdown();
+    await (first as unknown as { writeQueue: () => Promise<void> }).writeQueue();
+    await new Promise((r) => setTimeout(r, 10));
 
     const second = new DownloadManager(queuePath);
     second.load();

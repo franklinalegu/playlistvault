@@ -119,11 +119,18 @@ export function humanizeYtDlpError(stderr: string, code: number | null): string 
   if (text.includes('sign in to confirm your age') || text.includes('age-restricted')) {
     return 'This content is age-restricted and requires a signed-in session.';
   }
-  if (text.includes('sign in to confirm') || text.includes('not a bot')) {
-    return 'Browser sign-in required. In Settings, choose the browser where you are signed in, then retry.';
+  if (text.includes('sign in to confirm') || text.includes('not a bot') || text.includes('confirm you') && text.includes('are not a bot')) {
+    return 'Browser sign-in required. In Settings, choose the browser where you are signed in (close that browser first), then retry.';
   }
-  if (text.includes('signature solving failed') || text.includes('n challenge solving failed') || text.includes('only images are available')) {
-    return 'YouTube signature verification could not run. Install Node.js 18+ or use a build with the bundled JavaScript runtime, then retry.';
+  // Chrome cookie DB locked while browser is running — yt-dlp issue #7271
+  if (text.includes('could not copy') && text.includes('cookie')) {
+    return 'Could not read browser cookies — close the browser completely (check Task Manager for lingering chrome.exe) and retry, or export a cookies.txt file in Settings.';
+  }
+  if (text.includes('signature solving failed') || text.includes('n challenge solving failed') || text.includes('only images are available') || text.includes('po token') || text.includes('visitor data')) {
+    return 'YouTube signature verification could not run. Update yt-dlp in Settings → Dependencies and ensure Node.js 18+ is available, then retry.';
+  }
+  if (text.includes('http error 403') || text.includes('403: forbidden') || text.includes('http error 403: forbidden')) {
+    return 'YouTube denied the request (HTTP 403). Update yt-dlp in Settings → Dependencies, then retry with a signed-in browser session (close the browser first).';
   }
   if (text.includes('http error 429') || text.includes('too many requests')) {
     return 'YouTube is rate-limiting this connection. Wait a few minutes and retry.';
