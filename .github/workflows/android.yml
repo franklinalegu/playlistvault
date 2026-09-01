@@ -33,7 +33,9 @@ jobs:
         run: npm run build
 
       - name: Sync Capacitor Android (minSdk 29 = Android 10)
-        run: npx cap sync android
+        run: |
+          npx cap copy android
+          npx cap update android || true
 
       # Debug APK for manual sideload — no Play Store, no signing required
       - name: Build debug APK
