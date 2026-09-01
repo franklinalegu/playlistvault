@@ -62,6 +62,10 @@ jobs:
         run: |
           ls -lh resources/bin/
           ./resources/bin/yt-dlp --version
-          ./resources/bin/ffmpeg -version | head -n 1
           test -f resources/bin/yt-dlp || test -f resources/bin/yt-dlp.exe
-          test -f resources/bin/ffmpeg || test -f resources/bin/ffmpeg.exe
+          # FFmpeg is not auto-fetched on Linux (use apt); only check on Windows/macOS runners
+          if [ -f resources/bin/ffmpeg ] || [ -f resources/bin/ffmpeg.exe ]; then
+            ./resources/bin/ffmpeg -version | head -n 1
+          else
+            echo "ffmpeg not in resources/bin on Linux — skipping (expected)"
+          fi

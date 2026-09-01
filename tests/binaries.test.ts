@@ -32,7 +32,7 @@ describe('binaries candidateDirs', () => {
     // No file was created in userBinDir; dev bin may exist after fetch:binaries.
     // Accept either bare fallback or dev resources/bin (both mean userBinDir empty).
     const bare = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
-    const isBareOrDev = bins.ytDlp === bare || bins.ytDlp.includes(`resources${require('node:path').sep}bin`);
+    const isBareOrDev = bins.ytDlp === bare || bins.ytDlp.includes(`resources${path.sep}bin`);
     expect(isBareOrDev).toBe(true);
   });
 });
