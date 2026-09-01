@@ -37,10 +37,11 @@ jobs:
           echo "capacitor.config.ts:"
           cat capacitor.config.ts || true
           ls -la dist/ | head -20 || true
-          ls -la android/ | head -20 || true
           npx cap copy android --verbose || echo "cap copy failed, continuing"
-          npx cap update android --verbose || echo "cap update failed, continuing"
-          ls -lh android/app/src/main/assets/public/ || true
+          ls -lh android/app/src/main/assets/public/ | head -20 || true
+
+      - name: Install Android SDK 34/36
+        run: sdkmanager "platforms;android-34" "platforms;android-36" "build-tools;34.0.0" "build-tools;36.0.0" || true
 
       # Debug APK for manual sideload — no Play Store, no signing required
       - name: Build debug APK
