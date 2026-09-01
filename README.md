@@ -29,7 +29,8 @@ A modern desktop app for downloading YouTube playlists for offline viewing — b
 ## Requirements
 
 - **Node.js 18+** and npm
-- **Windows 10/11** or **macOS 12+** to run the packaged app
+- **Windows 10/11** or **macOS 12+** to run the packaged desktop app
+- **Android 10+ (API 29) through Android 15 (API 35)** for the sideload APK — no Play Store needed
 - `yt-dlp` and `ffmpeg` — fetched automatically, see below
 
 ## Getting started
@@ -52,6 +53,20 @@ npm run dist:portable   # portable .exe only
 npm run dist:mac        # macOS DMG + ZIP for the current Mac architecture
 npm run pack            # unpacked directory (fast, for smoke testing)
 ```
+
+## Building the Android APK (sideload, Android 10+)
+
+No Play Store needed — the APK is built by GitHub Actions and attached to each GitHub Release. Users install by enabling **Install unknown apps**.
+
+```bash
+npm run build           # must build web assets first -> dist/
+npx cap sync android    # copy dist → android/app/src/main/assets/public
+# Local build requires Android SDK + JDK 17:
+cd android && ./gradlew assembleDebug   # -> android/app/build/outputs/apk/debug/app-debug.apk
+# Release APK is built automatically on `git push --follow-tags` (see .github/workflows/android.yml)
+```
+
+Configure Android SDK range in `android/variables.gradle` (`minSdkVersion 29` = Android 10, `targetSdkVersion 34`). The workflow builds `assembleDebug` on every `main` push and `assembleRelease` on `v*` tags; the APK is uploaded as an artifact and attached to the Release for sideloading. On device: **Settings → Security → Install unknown apps → Allow** for your browser/file manager → tap the APK.
 
 The Windows installer lets the user choose the install directory, creates desktop and Start Menu shortcuts, registers an uninstall entry, and supports automatic updates via `electron-updater`. Installed apps check after startup, when connectivity returns, and periodically while running; updates download in the background and install on restart. macOS releases are distributed as DMG and ZIP files and require Apple signing/notarization for reliable automatic updates and a warning-free first launch.
 

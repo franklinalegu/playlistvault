@@ -22,9 +22,14 @@
     "dist": "npm run build && electron-builder --win",
     "dist:portable": "npm run build && electron-builder --win portable",
     "dist:mac": "npm run build && npm run fetch:binaries && electron-builder --mac dmg zip",
+    "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "android:sync": "npx cap sync android",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/cli": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
     "adm-zip": "^0.6.0",
     "electron-updater": "^6.3.9"
   },
