@@ -57,9 +57,18 @@ function candidateDirs(): string[] {
   // can be refreshed without reinstalling the app.
   dirs.push(getUserBinDir());
   // Packaged app: resources/bin next to the executable.
-  if (process.resourcesPath) dirs.push(path.join(process.resourcesPath, 'bin'));
-  // Development: repo-local resources/bin populated by scripts/fetch-binaries.mjs
-  dirs.push(path.resolve(process.cwd(), 'resources', 'bin'));
+  if (process.resourcesPath) {
+    dirs.push(path.join(process.resourcesPath, 'bin'));
+  }
+  // Development fallback: repo-local resources/bin populated by scripts/fetch-binaries.mjs.
+  // Only add when not packaged — in a packaged Electron app process.cwd() is
+  // not the repo root and would be misleading in diagnostics.
+  const isPackaged = Boolean(process.resourcesPath && !process.resourcesPath.includes('node_modules'));
+  // Also guard that the dev dir actually exists to avoid noisy ENOENT checks.
+  const devBin = path.resolve(process.cwd(), 'resources', 'bin');
+  try {
+    if (!isPackaged && fs.existsSync(devBin)) dirs.push(devBin);
+  } catch { /* ignore */ }
   dirs.push(path.join(os.homedir(), '.playlistvault', 'bin'));
   return dirs;
 }
@@ -78,9 +87,14 @@ function findOnDisk(base: string): string | undefined {
 }
 
 function findNodeRuntime(): string {
-  const bundled = process.resourcesPath
-    ? [path.join(process.resourcesPath, 'bin', exeName('node'))]
-    : [path.resolve(process.cwd(), 'resources', 'bin', exeName('node'))];
+  // Bundled runtime: packaged bin or dev bin (only when not packaged).
+  const bundled: string[] = [];
+  if (process.resourcesPath) {
+    bundled.push(path.join(process.resourcesPath, 'bin', exeName('node')));
+  } else {
+    const devNode = path.resolve(process.cwd(), 'resources', 'bin', exeName('node'));
+    try { if (fs.existsSync(devNode)) bundled.push(devNode); } catch { /* ignore */ }
+  }
   const candidates = process.platform === 'win32'
     ? [
         ...bundled,

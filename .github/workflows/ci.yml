@@ -44,3 +44,24 @@ jobs:
 
       - name: Build renderer and main
         run: npx vite build
+
+  binaries-sanity:
+    name: Binary download sanity (no missing yt-dlp release)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Fetch binaries (yt-dlp + ffmpeg)
+        run: npm run fetch:binaries -- --force
+      - name: Verify yt-dlp and ffmpeg are executable
+        run: |
+          ls -lh resources/bin/
+          ./resources/bin/yt-dlp --version
+          ./resources/bin/ffmpeg -version | head -n 1
+          test -f resources/bin/yt-dlp || test -f resources/bin/yt-dlp.exe
+          test -f resources/bin/ffmpeg || test -f resources/bin/ffmpeg.exe

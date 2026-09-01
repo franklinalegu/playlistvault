@@ -174,7 +174,8 @@ export function buildAnalyzeArgs(
 export function buildFormatProbeArgs(
   url: string,
   browserCookieSource: BrowserCookieSource = 'none',
-  cookiesFile?: string
+  cookiesFile?: string,
+  proxy?: ProxyConfig
 ): string[] {
   const args = [
     '--list-formats', '--no-playlist', '--ignore-config', '--no-warnings', '--no-colors',
@@ -183,6 +184,13 @@ export function buildFormatProbeArgs(
   addYouTubeRuntimeArgs(args);
   if (browserCookieSource !== 'none') args.push('--cookies-from-browser', browserCookieSource);
   if (cookiesFile) args.push('--cookies', cookiesFile);
+  if (proxy?.enabled && proxy.host && proxy.port) {
+    const auth = proxy.username
+      ? `${encodeURIComponent(proxy.username)}:${encodeURIComponent(proxy.password ?? '')}@`
+      : '';
+    const proxyUrl = `${proxy.type}://${auth}${proxy.host}:${proxy.port}`;
+    args.push('--proxy', proxyUrl);
+  }
   args.push(url);
   return args;
 }

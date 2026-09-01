@@ -61,6 +61,8 @@ export function runYtDlp(args: string[], options: RunOptions = {}): SpawnHandle 
     if (child.killed || child.exitCode !== null) return;
     if (process.platform === 'win32') {
       // SIGTERM is not really supported on Windows; kill the tree.
+      // Guard against spawn failure where pid is undefined.
+      if (!child.pid) return;
       spawn('taskkill', ['/pid', String(child.pid), '/t', '/f'], {
         shell: false,
         windowsHide: true,

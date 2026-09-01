@@ -277,10 +277,11 @@ export function registerIpcHandlers(deps: Deps): void {
   handle(IPC.appCheckBinaries, () => checkBinaries());
 
   handle<string>(IPC.authTest, async () => {
-    const source = settings.get().browserCookieSource;
-    if (source === 'none') throw new Error('Choose a browser in Settings first.');
+    const prefs = settings.get();
+    const source = prefs.browserCookieSource;
+    if (source === 'none' && !prefs.cookiesFile) throw new Error('Choose a browser in Settings or provide a cookies.txt file first.');
     const { promise } = runYtDlpCollect(
-      buildFormatProbeArgs('https://www.youtube.com/watch?v=dQw4w9WgXcQ', source)
+      buildFormatProbeArgs('https://www.youtube.com/watch?v=dQw4w9WgXcQ', source, prefs.cookiesFile, prefs.proxy)
     );
     const output = await promise;
     if (!/^\s*\d+\s+(mp4|webm|m4a|mp3|opus|mov)\s+/im.test(output)) {
