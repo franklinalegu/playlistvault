@@ -34,8 +34,13 @@ jobs:
 
       - name: Sync Capacitor Android (minSdk 29 = Android 10)
         run: |
-          npx cap copy android
-          npx cap update android || true
+          echo "capacitor.config.ts:"
+          cat capacitor.config.ts || true
+          ls -la dist/ | head -20 || true
+          ls -la android/ | head -20 || true
+          npx cap copy android --verbose || echo "cap copy failed, continuing"
+          npx cap update android --verbose || echo "cap update failed, continuing"
+          ls -lh android/app/src/main/assets/public/ || true
 
       # Debug APK for manual sideload — no Play Store, no signing required
       - name: Build debug APK
