@@ -33,8 +33,9 @@ const REPO = process.env.GITHUB_REPO || 'franklinalegu/playlistvault';
 // Last known-good build, used only if the API is unreachable so the button
 // degrades to "slightly stale" rather than "broken".
 const FALLBACK =
-  'https://github.com/franklinalegu/playlistvault/releases/download/v5.2.0/PlaylistVault-5.2.0-x64.exe';
+  'https://github.com/franklinalegu/playlistvault/releases/download/v5.2.3/PlaylistVault-5.2.3-x64.exe';
 const FALLBACK_MAC = 'https://github.com/franklinalegu/playlistvault/releases/latest';
+const FALLBACK_ANDROID = 'https://github.com/franklinalegu/playlistvault/releases/latest/download/app-release.apk';
 
 /** Pick the Windows installer from a release's assets. */
 function findInstaller(assets) {
@@ -52,8 +53,10 @@ function findInstaller(assets) {
 
 function requestedPlatform(req) {
   const explicit = req.query?.platform;
-  if (explicit === 'mac' || explicit === 'win') return explicit;
-  return /Macintosh|Mac OS X/i.test(req.headers?.['user-agent'] ?? '') ? 'mac' : 'win';
+  if (explicit === 'mac' || explicit === 'win' || explicit === 'android') return explicit;
+  const ua = req.headers?.['user-agent'] ?? '';
+  if (/Android/i.test(ua)) return 'android';
+  return /Macintosh|Mac OS X/i.test(ua) ? 'mac' : 'win';
 }
 
 function requestedMacArch(req) {
@@ -81,10 +84,18 @@ function findMacInstaller(assets, arch, format) {
   return assets.find((asset) => new RegExp(`-${arch}\\.${format}$`, 'i').test(asset.name)) || null;
 }
 
+function findAndroidApk(assets) {
+  if (!Array.isArray(assets)) return null;
+  return assets.find((a) => /\.apk$/i.test(a.name) && !/\.blockmap/i.test(a.name)) || null;
+}
+
 export default async function handler(req, res) {
   const platform = requestedPlatform(req);
   const macArch = platform === 'mac' ? requestedMacArch(req) : null;
   const format = requestedFormat(req);
+  if (platform === 'android') {
+    return handleAndroid(req, res);
+  }
   const hasExplicitMacTarget = platform === 'mac' && (req.query?.arch || req.query?.format);
   // R2 first: a stable URL that already points at the newest build, so there
   // is no API call, no rate limit and no dependency on repo visibility.
@@ -168,6 +179,52 @@ export default async function handler(req, res) {
     // build we know exists and record why.
     console.error('[download] falling back:', error.message);
     res.setHeader('Cache-Control', 'no-store');
-    res.redirect(302, platform === 'mac' ? FALLBACK_MAC : FALLBACK);
+    if (platform === 'android') res.redirect(302, FALLBACK_ANDROID);
+    else res.redirect(302, platform === 'mac' ? FALLBACK_MAC : FALLBACK);
+  }
+}
+
+async function handleAndroid(req, res) {
+  if (process.env.R2_PUBLIC_URL) {
+    const base = process.env.R2_PUBLIC_URL.replace(/\/+$/, '');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.redirect(302, `${base}/app-release.apk`);
+    return;
+  }
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'playlistvault-site'
+  };
+  if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  try {
+    const api = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+      headers,
+      next: { revalidate: 300 }
+    });
+    if (!api.ok) throw new Error(`GitHub API returned ${api.status}`);
+    const release = await api.json();
+    const apk = findAndroidApk(release.assets);
+    if (!apk) throw new Error('No APK asset in the latest release');
+    const target = process.env.GITHUB_TOKEN ? apk.url : apk.browser_download_url;
+    if (process.env.GITHUB_TOKEN) {
+      const bin = await fetch(target, {
+        headers: { ...headers, Accept: 'application/octet-stream' },
+        redirect: 'follow'
+      });
+      if (!bin.ok) throw new Error(`Asset fetch returned ${bin.status}`);
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', `attachment; filename="${apk.name}"`);
+      if (bin.headers.get('content-length')) res.setHeader('Content-Length', bin.headers.get('content-length'));
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      const buf = Buffer.from(await bin.arrayBuffer());
+      res.status(200).send(buf);
+      return;
+    }
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.redirect(302, target);
+  } catch (error) {
+    console.error('[download:android] falling back:', error.message);
+    res.setHeader('Cache-Control', 'no-store');
+    res.redirect(302, FALLBACK_ANDROID);
   }
 }

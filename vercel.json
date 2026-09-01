@@ -70,6 +70,10 @@
     {
       "source": "/download/mac/apple-silicon/zip",
       "destination": "/api/download?platform=mac&arch=arm64&format=zip"
+    },
+    {
+      "source": "/download/android",
+      "destination": "/api/download?platform=android"
     }
   ]
 }
