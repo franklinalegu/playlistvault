@@ -6,6 +6,7 @@ import { QueueProvider } from '@/contexts/QueueContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { FirstRunWizard } from '@/components/FirstRunWizard';
 import { YtDlpUpdateNotice } from '@/components/YtDlpUpdateNotice';
+import { AppUpdateBanner } from '@/components/AppUpdateBanner';
 import { Sidebar } from '@/components/Sidebar';
 import { TitleBar } from '@/components/TitleBar';
 import { Home } from '@/pages/Home';
@@ -21,6 +22,7 @@ export default function App(): JSX.Element {
         <SettingsProvider>
           <QueueProvider>
             <YtDlpUpdateNotice />
+            <AppUpdateBanner />
             {/* HashRouter avoids file:// path issues in the packaged build. */}
             <HashRouter>
               <FirstRunWizard>

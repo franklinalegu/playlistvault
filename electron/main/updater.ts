@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron';
-import { app, net } from 'electron';
+import { app, net, Notification } from 'electron';
 import pkg from 'electron-updater';
 import { IPC, type UpdateState } from '@shared/types';
 import type { SettingsService } from '@backend/settings/settingsService.js';
@@ -42,16 +42,32 @@ export function setupAutoUpdater(
     autoUpdater.allowPrerelease = false;
 
     autoUpdater.on('checking-for-update', () => emit({ status: 'checking' }));
-    autoUpdater.on('update-available', (info) =>
-      emit({ status: 'available', version: info.version })
-    );
+    autoUpdater.on('update-available', (info) => {
+      emit({ status: 'available', version: info.version });
+      if (Notification.isSupported()) {
+        new Notification({
+          title: `PlaylistVault ${info.version} available`,
+          body: 'Fixes YouTube downloads (exit code 4294967295, HTTP 403, bot detection). Downloading in background.',
+          silent: true
+        }).show();
+      }
+    });
     autoUpdater.on('update-not-available', () => emit({ status: 'up-to-date' }));
     autoUpdater.on('download-progress', (p) =>
       emit({ status: 'downloading', percent: Math.round(p.percent) })
     );
-    autoUpdater.on('update-downloaded', (info) =>
-      emit({ status: 'ready', version: info.version })
-    );
+    autoUpdater.on('update-downloaded', (info) => {
+      emit({ status: 'ready', version: info.version });
+      if (Notification.isSupported()) {
+        const n = new Notification({
+          title: `PlaylistVault ${info.version} ready to install`,
+          body: 'Restart to apply YouTube & stability fixes. Click to install now.',
+          silent: false
+        });
+        n.on('click', () => autoUpdater.quitAndInstall(false, true));
+        n.show();
+      }
+    });
     autoUpdater.on('error', (error) =>
       emit({ status: 'error', message: error?.message ?? 'Update check failed.' })
     );
