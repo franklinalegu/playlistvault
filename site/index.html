@@ -27,14 +27,13 @@
 <link rel="preload" as="image" href="assets/shot-home.jpg" fetchpriority="high">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Loaded async: a blocking font stylesheet delays first paint by a full
-     round-trip. font-display:swap renders text immediately in the fallback. -->
+<!-- Divine style: Outfit for body, Space Grotesk for headings — swap renders instantly -->
 <link rel="preload" as="style"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
       onload="this.onload=null;this.rel='stylesheet'">
 <noscript>
   <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
 </noscript>
 
 <style>
@@ -49,9 +48,10 @@
   img,video{max-width:100%}
   body{
     background:var(--bg); color:var(--text);
-    font:16px/1.65 Inter,-apple-system,"Segoe UI",system-ui,sans-serif;
+    font:16px/1.65 Outfit,system-ui,-apple-system,"Segoe UI",sans-serif;
     -webkit-font-smoothing:antialiased; overflow-x:hidden;
   }
+  h1,h2,h3{font-family:"Space Grotesk",Outfit,system-ui,sans-serif;letter-spacing:-.04em}
   /* Animated aurora backdrop.
      Each blob is its own layer so they drift independently and never visibly
      loop in sync. Only transform/opacity are animated — both are composited on
@@ -127,7 +127,7 @@
   header.hero{padding:88px 0 56px;text-align:center}
   .badge{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--accent-lt);
     background:rgba(79,70,229,.12);border:1px solid rgba(79,70,229,.28);
-    padding:7px 15px;border-radius:999px;margin-bottom:26px;font-weight:500}
+    padding:7px 15px;border-radius:0;margin-bottom:26px;font-weight:500}
   .dot{width:6px;height:6px;border-radius:50%;background:#34D399;
     box-shadow:0 0 0 3px rgba(52,211,153,.18)}
   h1{font-size:clamp(2.4rem,6vw,4rem);line-height:1.06;letter-spacing:-.035em;

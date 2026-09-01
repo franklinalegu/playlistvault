@@ -5,7 +5,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'Segoe UI', 'system-ui', 'sans-serif']
+        sans: ['Outfit', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        display: ['Space Grotesk', 'Outfit', 'system-ui', 'sans-serif']
       },
       colors: {
         accent: {
