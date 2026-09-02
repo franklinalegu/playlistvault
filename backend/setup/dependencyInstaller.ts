@@ -11,12 +11,17 @@ import { getUserBinDir, clearBinaryCache } from '../ffmpeg/binaries.js';
 const YTDLP_URL_WIN = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe';
 const YTDLP_URL_NIX = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
 
+// Keep Windows filename case-insensitive but validate after download
+const MIN_YTDLP_BYTES = 8_000_000; // yt-dlp.exe is ~18 MB; anything <8 MB is an HTML error page
+
 /**
  * FFmpeg "essentials" build. Only ffmpeg.exe and ffprobe.exe are kept; the
  * archive also contains ffplay and docs which we discard to save ~90 MB.
  */
 const FFMPEG_ZIP_WIN =
   'https://github.com/GyanD/codexffmpeg/releases/download/7.1/ffmpeg-7.1-essentials_build.zip';
+const FFMPEG_ZIP_WIN_FALLBACK =
+  'https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip';
 const FFMPEG_ZIP_MAC = 'https://evermeet.cx/ffmpeg/getrelease/zip';
 
 export type ProgressReporter = (progress: DependencyProgress) => void;
@@ -61,8 +66,49 @@ async function installYtDlp(binDir: string, report: ProgressReporter): Promise<s
     report({ name: 'yt-dlp', stage: 'downloading', percent, message: detail })
   );
 
+  // Validate: GitHub returns an HTML page on rate-limit/404 — detect by size and header sniff
+  try {
+    const stat = await fsp.stat(tmp);
+    if (stat.size < MIN_YTDLP_BYTES) {
+      const head = (await fsp.readFile(tmp, 'utf-8').catch(() => '')).slice(0, 800).toLowerCase();
+      if (head.includes('<!doctype') || head.includes('<html') || head.includes('rate limit') || head.includes('not found')) {
+        await fsp.rm(tmp, { force: true }).catch(() => undefined);
+        throw new Error(
+          'GitHub returned an error page instead of yt-dlp (rate-limited or network issue). Wait a minute and retry, or download manually from https://github.com/yt-dlp/yt-dlp/releases/latest and place yt-dlp.exe in the app data folder.'
+        );
+      }
+      if (stat.size < MIN_YTDLP_BYTES) {
+        await fsp.rm(tmp, { force: true }).catch(() => undefined);
+        throw new Error(
+          `Downloaded yt-dlp looks truncated (${(stat.size / 1024).toFixed(0)} KB). The download was interrupted — retry.`
+        );
+      }
+    }
+  } catch (e) {
+    if (e instanceof Error && /GitHub returned|truncated/i.test(e.message)) throw e;
+    // stat failed — let replaceFile/download error surface
+  }
+
+  // Antivirus often deletes the file between download and move — verify it still exists
+  if (!fs.existsSync(tmp)) {
+    throw new Error(
+      'yt-dlp was removed after download (likely antivirus quarantine). Allow yt-dlp.exe in Windows Security → Protection history, then retry.'
+    );
+  }
+
   await replaceFile(tmp, target);
   if (!isWin) await fsp.chmod(target, 0o755);
+
+  // Post-install sanity: the file should exist and be non-empty
+  try {
+    const after = await fsp.stat(target);
+    if (after.size === 0) throw new Error('installed file is 0 bytes');
+  } catch {
+    throw new Error(
+      'yt-dlp install appears to have been blocked (file missing or empty after move). Check antivirus quarantine and retry.'
+    );
+  }
+
   return target;
 }
 
@@ -78,9 +124,37 @@ async function installFfmpeg(binDir: string, report: ProgressReporter): Promise<
 
   try {
     report({ name: 'ffmpeg', stage: 'downloading', percent: 0, message: 'Contacting server…' });
-    await download(process.platform === 'darwin' ? FFMPEG_ZIP_MAC : FFMPEG_ZIP_WIN, zipPath, (percent, detail) =>
-      report({ name: 'ffmpeg', stage: 'downloading', percent, message: detail })
-    );
+    let downloaded = false;
+    let lastErr: unknown = null;
+    const candidates =
+      process.platform === 'win32' ? [FFMPEG_ZIP_WIN, FFMPEG_ZIP_WIN_FALLBACK] : [FFMPEG_ZIP_MAC];
+    for (const url of candidates) {
+      try {
+        await download(url, zipPath, (percent, detail) =>
+          report({ name: 'ffmpeg', stage: 'downloading', percent, message: detail })
+        );
+        downloaded = true;
+        break;
+      } catch (e) {
+        lastErr = e;
+        const msg = e instanceof Error ? e.message : String(e);
+        // 404 on Gyan build happens when the 7.1 tag is gone — try fallback immediately
+        if (/Server returned 404/i.test(msg) && url === FFMPEG_ZIP_WIN) continue;
+        if (candidates.indexOf(url) === candidates.length - 1) throw e;
+      }
+    }
+    if (!downloaded) throw lastErr ?? new Error('FFmpeg download failed');
+
+    // Validate zip is not an HTML error page
+    const zipStat = await fsp.stat(zipPath).catch(() => null);
+    if (zipStat && zipStat.size < 1_000_000) {
+      const head = (await fsp.readFile(zipPath, 'utf-8').catch(() => '')).slice(0, 900).toLowerCase();
+      if (head.includes('<!doctype') || head.includes('<html') || head.includes('not found')) {
+        throw new Error(
+          'FFmpeg server returned an error page. Try again in a minute, or download manually from https://ffmpeg.org/download.html and place ffmpeg.exe/ffprobe.exe in the app data folder.'
+        );
+      }
+    }
 
     report({ name: 'ffmpeg', stage: 'extracting', percent: 100, message: 'Extracting…' });
 
@@ -101,7 +175,7 @@ async function installFfmpeg(binDir: string, report: ProgressReporter): Promise<
     }
 
     if (extracted < wanted.length) {
-      throw new Error('The FFmpeg archive did not contain the expected programs.');
+      throw new Error('The FFmpeg archive did not contain the expected programs. Try the fallback or install manually.');
     }
 
     return path.join(binDir, `ffmpeg${suffix}`);
@@ -197,17 +271,31 @@ function formatProgress(received: number, total: number): string {
 
 function describeError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error);
+  // Preserve already-humanized messages (they contain guidance)
+  if (/quarantine|manually from https|Allow it in Windows Security|truncated|rate-limit/i.test(raw)) return raw;
   if (/ENOTFOUND|EAI_AGAIN|fetch failed|ENETUNREACH/i.test(raw)) {
-    return 'Could not reach the download server. Check your internet connection and try again.';
+    return 'Could not reach the download server. Check your internet connection and try again. If corporate firewall blocks GitHub, download manually (links in Settings → Dependencies).';
   }
-  if (/ETIMEDOUT|timeout/i.test(raw)) {
+  if (/Server returned 403/i.test(raw)) {
+    return 'Download blocked (403). GitHub may be rate-limiting — wait 60s and retry, or download manually from the link in Settings → Dependencies.';
+  }
+  if (/Server returned 404/i.test(raw)) {
+    return 'Download not found (404). The release may have moved — retry to use the fallback, or download manually.';
+  }
+  if (/Server returned 429/i.test(raw)) {
+    return 'Too many requests (429). Wait a minute and retry.';
+  }
+  if (/ETIMEDOUT|timeout|AbortError/i.test(raw)) {
     return 'The download timed out. Check your connection and try again.';
   }
   if (/ENOSPC/i.test(raw)) {
     return 'Not enough free disk space to install this component.';
   }
   if (/EACCES|EPERM/i.test(raw)) {
-    return 'Permission denied writing to the app data folder.';
+    return 'Permission denied writing to the app data folder. Try running as administrator or pick a folder inside your user profile.';
+  }
+  if (/EBUSY|in use/i.test(raw)) {
+    return raw; // already friendly from replaceFile
   }
   return raw;
 }

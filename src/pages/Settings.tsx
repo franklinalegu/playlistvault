@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
+  FiAlertTriangle,
   FiCheckCircle,
+  FiDownloadCloud,
+  FiExternalLink,
   FiFileText,
   FiFolder,
   FiKey,
@@ -8,10 +11,10 @@ import {
   FiRotateCcw,
   FiXCircle
 } from 'react-icons/fi';
-import type { BinaryStatus, PostDownloadAction, ThemeMode } from '@shared/types';
+import type { BinaryStatus, DependencyProgress, PostDownloadAction, ThemeMode } from '@shared/types';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/contexts/ToastContext';
-import { PageShell, Select, Toggle } from '@/components/ui';
+import { PageShell, ProgressBar, Select, Toggle } from '@/components/ui';
 
 export function Settings(): JSX.Element {
   const { settings, update, reset } = useSettings();
@@ -19,6 +22,8 @@ export function Settings(): JSX.Element {
   const [binaries, setBinaries] = useState<BinaryStatus[]>([]);
   const [checking, setChecking] = useState(false);
   const [testingAuth, setTestingAuth] = useState(false);
+  const [installing, setInstalling] = useState<string | null>(null);
+  const [depProgress, setDepProgress] = useState<Record<string, DependencyProgress>>({});
 
   const checkBinaries = async (): Promise<void> => {
     setChecking(true);
@@ -27,8 +32,35 @@ export function Settings(): JSX.Element {
     setChecking(false);
   };
 
+  const installDep = async (name: 'yt-dlp' | 'ffmpeg'): Promise<void> => {
+    setInstalling(name);
+    setDepProgress((prev) => ({ ...prev, [name]: { name, stage: 'downloading', percent: 0, message: 'Starting…' } }));
+    const res = await window.vault.system.installDependency(name);
+    if (res.ok) {
+      success(`${name} installed`, 'Re-checking…');
+      setDepProgress((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    } else {
+      setDepProgress((prev) => ({ ...prev, [name]: { name, stage: 'error', percent: 0, message: res.error } }));
+      error(`Failed to install ${name}`, res.error);
+    }
+    await checkBinaries();
+    setInstalling(null);
+  };
+
   useEffect(() => {
     void checkBinaries();
+    const off = window.vault.system.onDependencyProgress((p) => {
+      setDepProgress((prev) => ({ ...prev, [p.name]: p }));
+      if (p.stage === 'done' || p.stage === 'error') {
+        // keep error visible, clear done after a moment
+        if (p.stage === 'done') setTimeout(() => setDepProgress((prev) => { const n={...prev}; delete n[p.name]; return n; }), 1200);
+      }
+    });
+    return off;
   }, []);
 
   const chooseFolder = async (): Promise<void> => {
@@ -408,33 +440,83 @@ export function Settings(): JSX.Element {
             </button>
           }
         >
-          <div className="space-y-2">
-            {binaries.map((bin) => (
-              <div
-                key={bin.name}
-                className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3"
-              >
-                {bin.found ? (
-                  <FiCheckCircle className="h-5 w-5 shrink-0 text-emerald-400" />
-                ) : (
-                  <FiXCircle className="h-5 w-5 shrink-0 text-rose-400" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-slate-200">{bin.name}</p>
-                  <p className="truncate text-[11px] text-slate-500" title={bin.path}>
-                    {bin.found ? bin.version : bin.error ?? 'Not found'}
-                  </p>
+          <div className="space-y-3">
+            {binaries.map((bin) => {
+              const p = depProgress[bin.name];
+              const isInstalling = installing === bin.name || (p && p.stage === 'downloading' && !bin.found);
+              return (
+                <div
+                  key={bin.name}
+                  className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    {bin.found ? (
+                      <FiCheckCircle className="h-5 w-5 shrink-0 text-emerald-400" />
+                    ) : p?.stage === 'error' ? (
+                      <FiAlertTriangle className="h-5 w-5 shrink-0 text-amber-400" />
+                    ) : (
+                      <FiXCircle className="h-5 w-5 shrink-0 text-rose-400" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-slate-200">{bin.name}</p>
+                      <p className="truncate text-[11px] text-slate-500" title={bin.error ?? bin.path}>
+                        {bin.found ? bin.version : bin.error ?? 'Not found — click Install'}
+                      </p>
+                      {!bin.found && bin.path && (
+                        <p className="truncate text-[10px] text-slate-600" title={bin.path}>Tried: {bin.path}</p>
+                      )}
+                    </div>
+                    {!bin.found ? (
+                      <button
+                        onClick={() => void installDep(bin.name as 'yt-dlp' | 'ffmpeg')}
+                        disabled={!!installing}
+                        className="btn-ghost shrink-0 px-3 py-1.5 text-xs"
+                      >
+                        <FiDownloadCloud className="h-3.5 w-3.5" />
+                        {isInstalling ? 'Installing…' : p?.stage === 'error' ? 'Retry' : 'Install'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => void installDep(bin.name as 'yt-dlp' | 'ffmpeg')}
+                        disabled={!!installing}
+                        className="btn-ghost shrink-0 px-2.5 py-1 text-xs opacity-70"
+                        title="Reinstall to update"
+                      >
+                        Update
+                      </button>
+                    )}
+                  </div>
+                  {p && p.stage !== 'error' && !bin.found && (
+                    <div className="mt-3">
+                      <ProgressBar value={p.percent} indeterminate={p.stage === 'extracting'} />
+                      <p className="mt-1.5 text-[11px] tabular-nums text-slate-400">{p.message}</p>
+                    </div>
+                  )}
+                  {p?.stage === 'error' && (
+                    <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+                      <p className="text-[11px] leading-relaxed text-amber-200/90">{p.message}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <button onClick={() => void installDep(bin.name as 'yt-dlp' | 'ffmpeg')} className="btn-ghost px-2 py-1 text-[11px]">Retry</button>
+                        <button onClick={() => void window.vault.system.openLog().then(r => { if (!r.ok) error('Could not open log', r.error); })} className="btn-ghost px-2 py-1 text-[11px]"><FiFileText className="h-3 w-3" /> Open log</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
-            {binaries.some((b) => !b.found) && (
-              <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs leading-relaxed text-amber-200/90">
-                Run <code className="rounded bg-black/30 px-1">npm run fetch:binaries</code> from the
-                project folder, or place <code className="rounded bg-black/30 px-1">yt-dlp.exe</code> and{' '}
-                <code className="rounded bg-black/30 px-1">ffmpeg.exe</code> in the app's{' '}
-                <code className="rounded bg-black/30 px-1">resources/bin</code> folder.
+              );
+            })}
+            {/* Actionable manual fallback — end users are not devs, hide npm run */}
+            <div className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-cyan-400/10 px-4 py-3">
+              <p className="text-xs font-semibold text-violet-200">Manual install (if auto fails)</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                Antivirus often quarantines <code className="rounded bg-black/30 px-1">yt-dlp.exe</code>. Allow it in <span className="text-slate-200">Windows Security → Protection history</span>, then click Install again. Or download directly:
               </p>
-            )}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <button onClick={() => void window.vault.system.openExternal('https://github.com/yt-dlp/yt-dlp/releases/latest')} className="chip glass-hover text-xs">yt-dlp releases <FiExternalLink className="h-3 w-3" /></button>
+                <button onClick={() => void window.vault.system.openExternal('https://ffmpeg.org/download.html')} className="chip glass-hover text-xs">FFmpeg <FiExternalLink className="h-3 w-3" /></button>
+                <button onClick={() => window.vault.system.openPath('').then(()=>{}).catch(()=>{})} className="chip glass-hover text-xs hidden">appdata</button>
+              </div>
+              <p className="mt-2 text-[11px] text-slate-500">Place files in the app data folder shown in <span className="font-medium text-slate-300">About → App data folder</span>, then Re-check.</p>
+            </div>
           </div>
         </Section>
 

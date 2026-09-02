@@ -130,6 +130,40 @@ export function resolveBinaries(): BinaryPaths {
 }
 
 async function probe(name: 'yt-dlp' | 'ffmpeg', bin: string, args: string[]): Promise<BinaryStatus> {
+  // Pre-check: if the resolved path is a file, verify it actually exists and is not zero bytes
+  // (antivirus often quarantines yt-dlp.exe immediately after download, leaving a 0-byte stub).
+  if (!bin.includes(path.sep) && !bin.includes('/') && !bin.includes('\\')) {
+    // Bare fallback like "yt-dlp.exe" — no file to stat, let execFile report ENOENT
+  } else {
+    try {
+      const stat = fs.statSync(bin);
+      if (!stat.isFile()) throw new Error('not a file');
+      if (stat.size === 0) {
+        return {
+          name,
+          found: false,
+          path: bin,
+          error: `${name} was quarantined or truncated (0 bytes). Allow it in Windows Security → Protection history, then reinstall.`
+        };
+      }
+      // On Windows, a fresh yt-dlp should be > 8 MB. Anything tiny is likely an HTML error page.
+      if (name === 'yt-dlp' && stat.size < 1_000_000) {
+        return {
+          name,
+          found: false,
+          path: bin,
+          error: `${name} looks corrupted (${(stat.size / 1024).toFixed(0)} KB). Delete it and reinstall from Settings → Dependencies.`
+        };
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/quarantined|corrupted/i.test(msg)) {
+        return { name, found: false, path: bin, error: msg };
+      }
+      // File truly missing — fall through to exec attempt so ENOENT is surfaced consistently
+    }
+  }
+
   try {
     const { stdout } = await execFileAsync(bin, args, {
       timeout: 15_000,
@@ -137,13 +171,29 @@ async function probe(name: 'yt-dlp' | 'ffmpeg', bin: string, args: string[]): Pr
       maxBuffer: 1024 * 1024
     });
     const first = stdout.split('\n')[0]?.trim() ?? '';
+    // Validate version string looks sane (yt-dlp prints YYYY.MM.DD, ffmpeg prints "ffmpeg version")
+    if (!first) {
+      return { name, found: false, path: bin, error: `${name} ran but produced no output — it may be blocked by antivirus.` };
+    }
     return { name, found: true, path: bin, version: first };
   } catch (error) {
+    const raw = error instanceof Error ? error.message : String(error);
+    const lower = raw.toLowerCase();
+    let friendly = raw;
+    if (lower.includes('enoent') || lower.includes('not found') || lower.includes('no such file')) {
+      friendly = `${name} is not installed. Click Install in Settings → Dependencies (or allow it in antivirus if you just installed it).`;
+    } else if (lower.includes('eacces') || lower.includes('eperm') || lower.includes('access is denied') || lower.includes('permission denied')) {
+      friendly = `${name} is blocked. Check Windows Security → Protection history and allow ${path.basename(bin)}, then reinstall.`;
+    } else if (lower.includes('ebusy') || lower.includes('resource busy')) {
+      friendly = `${name} is in use. Close any running download and retry.`;
+    } else if (lower.includes('timed out') || lower.includes('timeout')) {
+      friendly = `${name} timed out — it may be stuck on a system prompt. Try reinstalling.`;
+    }
     return {
       name,
       found: false,
       path: bin,
-      error: error instanceof Error ? error.message : String(error)
+      error: friendly
     };
   }
 }
