@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiClock, FiDownload, FiHome, FiInfo, FiSettings, FiZap } from 'react-icons/fi';
+import { FiClock, FiDownload, FiHome, FiInfo, FiPlayCircle, FiSettings, FiZap } from 'react-icons/fi';
 import { useQueue } from '@/contexts/QueueContext';
 import { formatSpeed } from '@shared/format';
 
 const LINKS = [
   { to: '/', label: 'Home', icon: FiHome, end: true, desc: 'Analyze' },
   { to: '/downloads', label: 'Queue', icon: FiDownload, end: false, desc: 'Active jobs' },
+  { to: '/player', label: 'Player', icon: FiPlayCircle, end: false, desc: 'Watch offline' },
   { to: '/history', label: 'Library', icon: FiClock, end: false, desc: 'Past saves' },
   { to: '/settings', label: 'Settings', icon: FiSettings, end: false, desc: 'Preferences' },
   { to: '/about', label: 'About', icon: FiInfo, end: false, desc: 'v6 · Neo' }

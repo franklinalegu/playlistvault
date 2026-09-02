@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   FiAlertTriangle,
   FiCheckCircle,
+  FiCpu,
   FiDownloadCloud,
   FiExternalLink,
   FiFileText,
@@ -15,6 +16,7 @@ import type { BinaryStatus, DependencyProgress, PostDownloadAction, ThemeMode } 
 import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/contexts/ToastContext';
 import { PageShell, ProgressBar, Select, Toggle } from '@/components/ui';
+import { CompatibilityPanel } from '@/components/CompatibilityBanner';
 
 export function Settings(): JSX.Element {
   const { settings, update, reset } = useSettings();
@@ -561,6 +563,13 @@ export function Settings(): JSX.Element {
               <p className="mt-2 text-[11px] text-slate-500">Place files in the app data folder shown in <span className="font-medium text-slate-300">About → App data folder</span>, then Re-check.</p>
             </div>
           </div>
+        </Section>
+
+        <Section title="System compatibility">
+          <p className="mb-3 flex items-center gap-1.5 text-xs leading-relaxed text-slate-500">
+            <FiCpu className="h-3 w-3" /> Detected hardware & OS — suggests the best version and auto-tunes performance.
+          </p>
+          <CompatibilityPanel />
         </Section>
 
         <Section title="Diagnostics">

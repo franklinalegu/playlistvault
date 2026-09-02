@@ -6,13 +6,16 @@ import type {
   AppInfo,
   AppSettings,
   BinaryStatus,
+  CompatibilityReport,
   DependencyName,
   DependencyProgress,
   DownloadJob,
   HistoryEntry,
   JobProgressSnapshot,
+  LocalVideo,
   PlaylistInfo,
   StartJobRequest,
+  SystemProfile,
   UpdateState,
   YtDlpUpdateStatus
 } from '@shared/types';
@@ -99,7 +102,16 @@ const api = {
     onClipboardUrl: (cb: (url: string) => void): (() => void) =>
       subscribe(IPC.clipboardUrlDetected, cb),
     onProtocolUrl: (cb: (url: string) => void): (() => void) =>
-      subscribe(IPC.protocolUrlDetected, cb)
+      subscribe(IPC.protocolUrlDetected, cb),
+    profile: (): Promise<ApiResult<SystemProfile>> => ipcRenderer.invoke(IPC.systemProfile),
+    compatibility: (): Promise<ApiResult<CompatibilityReport>> =>
+      ipcRenderer.invoke(IPC.systemCompatibility)
+  },
+
+  media: {
+    list: (): Promise<ApiResult<LocalVideo[]>> => ipcRenderer.invoke(IPC.mediaList),
+    reveal: (filePath: string): Promise<ApiResult<boolean>> =>
+      ipcRenderer.invoke(IPC.mediaReveal, filePath)
   },
 
   batch: {

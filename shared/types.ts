@@ -194,6 +194,57 @@ export interface HistoryEntry {
 
 export type BgPreset = 'neo-mesh' | 'minimal' | 'aurora' | 'midnight' | 'clean-light';
 
+export type SystemProfile = {
+  platform: NodeJS.Platform;
+  arch: string;
+  osRelease: string;
+  osVersion: string;
+  cpuCount: number;
+  cpuModel: string;
+  totalMemGB: number;
+  freeMemGB: number;
+  diskFreeGB: number | null;
+  electron: string;
+  chrome: string;
+  node: string;
+};
+
+export type CompatibilityStatus = 'pass' | 'warn' | 'fail';
+export interface CompatibilityCheck {
+  id: string;
+  label: string;
+  status: CompatibilityStatus;
+  message: string;
+  recommendation?: string;
+  action?: 'downgrade' | 'upgrade' | 'adjust_settings' | 'install_dependency' | 'free_space';
+  versionSuggestion?: string;
+  link?: string;
+}
+export interface CompatibilityReport {
+  profile: SystemProfile;
+  currentVersion: string;
+  checks: CompatibilityCheck[];
+  overall: 'optimal' | 'compatible' | 'needs_attention' | 'incompatible';
+  suggestedVersion: string | null;
+  suggestedUrl: string | null;
+  autoAppliedFixes: string[];
+}
+
+// Local media library
+export interface LocalVideo {
+  id: string;
+  title: string;
+  filePath: string;
+  fileUrl: string; // vault-media://...
+  sizeBytes: number;
+  modifiedAt: string;
+  durationSeconds?: number;
+  playlistTitle?: string;
+  sourceUrl?: string;
+  thumbnail?: string;
+  container: string;
+}
+
 export interface AppSettings {
   theme: ThemeMode;
   accentColor: string;
@@ -347,7 +398,14 @@ export const IPC = {
   batchParseFile: 'batch:parse-file',
 
   shutdownSchedule: 'shutdown:schedule',
-  shutdownCancel: 'shutdown:cancel'
+  shutdownCancel: 'shutdown:cancel',
+
+  systemProfile: 'system:profile',
+  systemCompatibility: 'system:compatibility',
+
+  mediaList: 'media:list',
+  mediaGetUrl: 'media:get-url',
+  mediaReveal: 'media:reveal'
 } as const;
 
 export const DEFAULT_DOWNLOAD_OPTIONS: DownloadOptions = {

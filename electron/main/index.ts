@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, nativeTheme } from 'electron';
+import { app, BrowserWindow, shell, nativeTheme, protocol } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setUserDataDir } from '@backend/ffmpeg/binaries.js';
@@ -11,6 +11,7 @@ import { setupAutoUpdater } from './updater.js';
 import { setupYtDlpAutoUpdate } from './ytDlpAutoUpdater.js';
 import { startClipboardWatcher } from './clipboard.js';
 import { forceRefreshPinnedIcon } from './pinnedIconRefresh.js';
+import { registerMediaProtocol } from './mediaProtocol.js';
 import { IPC } from '@shared/types';
 import { parseYouTubeUrl } from '@backend/util/sanitize.js';
 
@@ -96,7 +97,10 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
+protocol.registerSchemesAsPrivileged([{ scheme: 'vault-media', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true } }]);
+
 app.whenReady().then(() => {
+  registerMediaProtocol();
   app.setAppUserModelId('app.playlistvault.desktop');
   if (process.defaultApp) {
     app.setAsDefaultProtocolClient('playlistvault', process.execPath, [path.resolve(process.argv[1] ?? '')]);

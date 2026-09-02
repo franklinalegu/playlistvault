@@ -21,6 +21,7 @@ import { checkBinaries } from '@backend/ffmpeg/binaries.js';
 import { log } from '@backend/util/logger.js';
 import { installDependency } from '@backend/setup/dependencyInstaller.js';
 import { checkYtDlpUpdate } from '@backend/setup/ytDlpUpdater.js';
+import { getSystemProfile, getCompatibilityReport } from '@backend/system/compatibility.js';
 import { isSafeDestination } from '@backend/util/sanitize.js';
 import { parseSourceUrl } from '@backend/util/platform.js';
 import { checkForUpdates, installUpdate } from './updater.js';
@@ -304,6 +305,26 @@ export function registerIpcHandlers(deps: Deps): void {
   handle<YtDlpUpdateStatus>(IPC.ytdlpCheckUpdate, () => checkYtDlpUpdate());
   handle<boolean>(IPC.updateCheck, async () => (await checkForUpdates(true), true));
   handle<boolean>(IPC.updateInstall, () => (installUpdate(), true));
+
+  // ---------- System compatibility ----------
+  handle(IPC.systemProfile, () => getSystemProfile());
+  handle(IPC.systemCompatibility, () => getCompatibilityReport());
+
+  // ---------- Local media (player) ----------
+  handle(IPC.mediaList, async () => {
+    const { listLocalVideos } = await import('@backend/media/library.js');
+    const hist = await history.list();
+    return listLocalVideos({
+      historyDestinations: hist.map(h => h.destination),
+      defaultDestination: settings.get().defaultDestination,
+      recentDestinations: settings.get().recentDestinations,
+    });
+  });
+  handle(IPC.mediaReveal, async (filePath: string) => {
+    if (!filePath || typeof filePath !== 'string') throw new Error('Missing file path');
+    shell.showItemInFolder(path.resolve(filePath));
+    return true;
+  });
 
   // ---------- Batch import ----------
 

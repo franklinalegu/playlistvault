@@ -12,6 +12,7 @@ import { TitleBar } from '@/components/TitleBar';
 import { Background } from '@/components/Background';
 import { Home } from '@/pages/Home';
 import { Downloads } from '@/pages/Downloads';
+import { Player } from '@/pages/Player';
 import { History } from '@/pages/History';
 import { Settings } from '@/pages/Settings';
 import { About } from '@/pages/About';
@@ -37,6 +38,7 @@ export default function App(): JSX.Element {
                       <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/downloads" element={<Downloads />} />
+                        <Route path="/player" element={<Player />} />
                         <Route path="/history" element={<History />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/about" element={<About />} />
