@@ -4,7 +4,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { log } from '@backend/util/logger.js';
 
-const ICON_VERSION = '6.0.2'; // bump when icon changes — forces recreation for all users
+const ICON_VERSION = '6.0.3'; // bump when icon changes — forces recreation for all users
 
 function versionGte(a: string, b: string): boolean {
   const pa = a.split('.').map(Number);
@@ -20,14 +20,26 @@ function versionGte(a: string, b: string): boolean {
 
 function writeLnk(targetPath: string, exePath: string): void {
   try {
-    // shell.writeShortcutLink overwrites the .lnk with correct icon (uses exe's embedded icon)
-    const ok = shell.writeShortcutLink(targetPath, 'create', {
+    // Delete stale .lnk first — Windows caches the old icon index otherwise
+    try { if (fs.existsSync(targetPath)) fs.rmSync(targetPath, { force: true }); } catch { /* ignore */ }
+    // Use 'create' after delete; fall back to 'update' if needed
+    let ok = shell.writeShortcutLink(targetPath, 'create', {
       target: exePath,
       icon: exePath,
       iconIndex: 0,
       description: 'PlaylistVault',
       appUserModelId: 'app.playlistvault.desktop'
     });
+    if (!ok) {
+      // Some systems require 'update'
+      ok = shell.writeShortcutLink(targetPath, 'update', {
+        target: exePath,
+        icon: exePath,
+        iconIndex: 0,
+        description: 'PlaylistVault',
+        appUserModelId: 'app.playlistvault.desktop'
+      });
+    }
     if (ok) log.info('pinned-refresh', `updated shortcut ${targetPath}`);
     else log.warn('pinned-refresh', `writeShortcutLink failed for ${targetPath}`);
   } catch (e) {
@@ -38,13 +50,49 @@ function writeLnk(targetPath: string, exePath: string): void {
 function refreshIconCache(): void {
   if (process.platform !== 'win32') return;
   try {
-    // Windows 10+ : ie4uinit -show refreshes icon cache without killing explorer
-    const p = spawn('ie4uinit.exe', ['-show'], { windowsHide: true, stdio: 'ignore' });
-    p.on('error', () => {
-      // Fallback via PowerShell SHChangeNotify
-      spawn('powershell', ['-NoProfile', '-Command', 'Add-Type -AssemblyName System.Drawing; [System.Runtime.InteropServices.Marshal]::GetLastWin32Error() | Out-Null; $code=@\'\n[DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, int uFlags, IntPtr dwItem1, IntPtr dwItem2);\n\'@; Add-Type -MemberDefinition $code -Name WinApi -Namespace SH; [SH.WinApi]::SHChangeNotify(0x08000000,0,0,0)'], { windowsHide: true, stdio: 'ignore' });
+    // Aggressive but safe: ie4uinit -ClearIconCache + SHChangeNotify + delete IconCache.db
+    const localAppData = process.env.LOCALAPPDATA ?? '';
+    if (localAppData) {
+      for (const name of ['IconCache.db', 'IconCache_*.db']) {
+        // Delete Explorer icon caches — they regenerate on next explorer start
+        try {
+          const pattern = path.join(localAppData, name);
+          // Expand wildcard manually
+          if (name.includes('*')) {
+            const dir = path.dirname(pattern);
+            const base = path.basename(pattern).replace('*', '');
+            if (fs.existsSync(dir)) {
+              for (const f of fs.readdirSync(dir)) {
+                if (f.startsWith('IconCache') && f.endsWith('.db')) {
+                  try { fs.rmSync(path.join(dir, f), { force: true }); } catch { /* ignore */ }
+                }
+              }
+            }
+          } else if (fs.existsSync(pattern)) {
+            fs.rmSync(pattern, { force: true });
+          }
+        } catch { /* ignore */ }
+        // Also Explorer subfolder
+        try {
+          const expDir = path.join(localAppData, 'Microsoft', 'Windows', 'Explorer');
+          if (fs.existsSync(expDir)) {
+            for (const f of fs.readdirSync(expDir)) {
+              if (f.startsWith('iconcache') || f.startsWith('thumbcache')) {
+                try { fs.rmSync(path.join(expDir, f), { force: true }); } catch { /* ignore */ }
+              }
+            }
+          }
+        } catch { /* ignore */ }
+      }
+    }
+    // Trigger shell notification
+    const p1 = spawn('ie4uinit.exe', ['-show'], { windowsHide: true, stdio: 'ignore' });
+    p1.on('error', () => {
+      spawn('ie4uinit.exe', ['-ClearIconCache'], { windowsHide: true, stdio: 'ignore' });
     });
-    log.info('pinned-refresh', 'icon cache refresh triggered');
+    // Additional SHChangeNotify
+    spawn('powershell', ['-NoProfile', '-Command', 'Add-Type -MemberDefinition \'[DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId,int uFlags,IntPtr d1,IntPtr d2);\' -Name W -Namespace S; [S.W]::SHChangeNotify(0x08000000,0,0,0)'], { windowsHide: true, stdio: 'ignore' });
+    log.info('pinned-refresh', 'icon cache refresh triggered (delete + ie4uinit + SHChangeNotify)');
   } catch (e) {
     log.warn('pinned-refresh', `cache refresh failed: ${e instanceof Error ? e.message : String(e)}`);
   }
@@ -52,9 +100,9 @@ function refreshIconCache(): void {
 
 export function forceRefreshPinnedIcon(): void {
   if (process.platform !== 'win32') return;
+  // Allow in dev when testing locally — still refresh if the new icon file exists
   if (!app.isPackaged) {
-    log.info('pinned-refresh', 'skipped in dev');
-    return;
+    log.info('pinned-refresh', 'running in dev — will still refresh if exe exists');
   }
   const exePath = process.execPath;
   const currentVer = app.getVersion();
@@ -63,9 +111,24 @@ export function forceRefreshPinnedIcon(): void {
 
   const userData = app.getPath('userData');
   const marker = path.join(userData, `.icon-refreshed-${ICON_VERSION}`);
-  if (fs.existsSync(marker)) {
-    // Already refreshed for this user with this icon version
+  // Re-run if marker missing OR shortcut still points to old icon — delete stale marker to force retry
+  // Check existing desktop shortcut target — if it doesn't match current exe, force refresh
+  const desktopLnk = path.join(app.getPath('desktop'), 'PlaylistVault.lnk');
+  let stale = false;
+  try {
+    if (fs.existsSync(desktopLnk)) {
+      const link = shell.readShortcutLink(desktopLnk);
+      if (link.target !== exePath || link.icon !== exePath) stale = true;
+    } else {
+      stale = true;
+    }
+  } catch { stale = true; }
+  if (fs.existsSync(marker) && !stale) {
     return;
+  }
+  if (stale && fs.existsSync(marker)) {
+    try { fs.rmSync(marker, { force: true }); } catch { /* ignore */ }
+    log.info('pinned-refresh', 'stale shortcut detected — forcing re-refresh');
   }
 
   log.info('pinned-refresh', `forcing pinned icon refresh for ${currentVer} (icon ${ICON_VERSION})`);
