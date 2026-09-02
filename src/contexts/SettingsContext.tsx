@@ -27,6 +27,7 @@ const FALLBACK: AppSettings = {
   notifyOnEachVideo: false,
   clipboardMonitoring: false,
   autoCheckUpdates: true,
+  autoUpdateYtDlp: true,
   minimizeToTray: false,
   confirmBeforeQuit: true,
   keepHistoryDays: 365,

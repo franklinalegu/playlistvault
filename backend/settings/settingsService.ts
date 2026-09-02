@@ -21,6 +21,7 @@ export function createDefaultSettings(downloadsDir: string, firstRunComplete = t
     notifyOnEachVideo: false,
     clipboardMonitoring: false,
     autoCheckUpdates: true,
+    autoUpdateYtDlp: true,
     minimizeToTray: false,
     confirmBeforeQuit: true,
     keepHistoryDays: 365,
@@ -75,8 +76,9 @@ export class SettingsService {
     const needsProxy = !current.proxy;
     const needsPostAction = !current.postDownloadAction;
     const needsKeyboardShortcuts = current.keyboardShortcutsEnabled === undefined;
+    const needsAutoUpdateYtDlp = current.autoUpdateYtDlp === undefined;
 
-    if (!needsOptions && !needsRecents && !needsCookieSource && !needsCookiesFile && !needsProxy && !needsPostAction && !needsKeyboardShortcuts) return;
+    if (!needsOptions && !needsRecents && !needsCookieSource && !needsCookiesFile && !needsProxy && !needsPostAction && !needsKeyboardShortcuts && !needsAutoUpdateYtDlp) return;
 
     await this.store.write({
       ...defaults,
@@ -89,7 +91,8 @@ export class SettingsService {
       cookiesFile: needsCookiesFile ? defaults.cookiesFile : current.cookiesFile,
       proxy: needsProxy ? defaults.proxy : current.proxy,
       postDownloadAction: needsPostAction ? defaults.postDownloadAction : current.postDownloadAction,
-      keyboardShortcutsEnabled: needsKeyboardShortcuts ? defaults.keyboardShortcutsEnabled : current.keyboardShortcutsEnabled
+      keyboardShortcutsEnabled: needsKeyboardShortcuts ? defaults.keyboardShortcutsEnabled : current.keyboardShortcutsEnabled,
+      autoUpdateYtDlp: needsAutoUpdateYtDlp ? defaults.autoUpdateYtDlp : current.autoUpdateYtDlp
     });
   }
 

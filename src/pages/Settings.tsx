@@ -280,8 +280,15 @@ export function Settings(): JSX.Element {
             />
             <Toggle
               label="Check for updates automatically"
+              description="Checks for PlaylistVault app updates."
               checked={settings.autoCheckUpdates}
               onChange={(autoCheckUpdates) => void update({ autoCheckUpdates })}
+            />
+            <Toggle
+              label="Keep yt-dlp up to date automatically"
+              description="Downloads the latest YouTube engine in the background (startup + every 12h). Recommended — YouTube changes break old builds."
+              checked={(settings as unknown as { autoUpdateYtDlp?: boolean }).autoUpdateYtDlp ?? true}
+              onChange={(autoUpdateYtDlp) => void update({ autoUpdateYtDlp } as Partial<typeof settings>)}
             />
             <Toggle
               label="Confirm before quitting during a download"

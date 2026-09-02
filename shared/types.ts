@@ -202,6 +202,8 @@ export interface AppSettings {
   notifyOnEachVideo: boolean;
   clipboardMonitoring: boolean;
   autoCheckUpdates: boolean;
+  /** Automatically download the latest yt-dlp in the background (default: true). */
+  autoUpdateYtDlp: boolean;
   minimizeToTray: boolean;
   confirmBeforeQuit: boolean;
   keepHistoryDays: number;
