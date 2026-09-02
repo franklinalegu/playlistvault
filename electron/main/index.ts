@@ -10,6 +10,7 @@ import { registerIpcHandlers } from './ipc.js';
 import { setupAutoUpdater } from './updater.js';
 import { setupYtDlpAutoUpdate } from './ytDlpAutoUpdater.js';
 import { startClipboardWatcher } from './clipboard.js';
+import { forceRefreshPinnedIcon } from './pinnedIconRefresh.js';
 import { IPC } from '@shared/types';
 import { parseYouTubeUrl } from '@backend/util/sanitize.js';
 
@@ -142,6 +143,8 @@ app.whenReady().then(() => {
   setupAutoUpdater(() => mainWindow, settings);
   setupYtDlpAutoUpdate(() => mainWindow, settings);
   startClipboardWatcher(() => mainWindow, settings);
+  // Force desktop / taskbar pinned icon to new shield-lock icon for all users (Windows icon cache is sticky)
+  try { forceRefreshPinnedIcon(); } catch { /* ignore */ }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow();
