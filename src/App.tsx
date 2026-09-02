@@ -9,6 +9,7 @@ import { YtDlpUpdateNotice } from '@/components/YtDlpUpdateNotice';
 import { AppUpdateBanner } from '@/components/AppUpdateBanner';
 import { Sidebar } from '@/components/Sidebar';
 import { TitleBar } from '@/components/TitleBar';
+import { Background } from '@/components/Background';
 import { Home } from '@/pages/Home';
 import { Downloads } from '@/pages/Downloads';
 import { History } from '@/pages/History';
@@ -26,6 +27,7 @@ export default function App(): JSX.Element {
             {/* HashRouter avoids file:// path issues in the packaged build. */}
             <HashRouter>
               <FirstRunWizard>
+              <Background />
               <div className="flex h-full">
                 <Sidebar />
                 <div className="flex min-w-0 flex-1 flex-col">

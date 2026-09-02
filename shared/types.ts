@@ -192,9 +192,12 @@ export interface HistoryEntry {
   manifestPath?: string;
 }
 
+export type BgPreset = 'neo-mesh' | 'minimal' | 'aurora' | 'midnight' | 'clean-light';
+
 export interface AppSettings {
   theme: ThemeMode;
   accentColor: string;
+  background: BgPreset;
   defaultDestination: string;
   defaultOptions: DownloadOptions;
   maxConcurrentJobs: number;

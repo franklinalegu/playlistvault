@@ -104,10 +104,53 @@ export function Settings(): JSX.Element {
           />
           <div className="mt-4">
             <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">
+              Background
+            </span>
+            <div className="grid grid-cols-5 gap-2">
+              {([
+                { id: 'neo-mesh', label: 'Neo Mesh' },
+                { id: 'minimal', label: 'Minimal' },
+                { id: 'aurora', label: 'Aurora' },
+                { id: 'midnight', label: 'Midnight' },
+                { id: 'clean-light', label: 'Light' }
+              ] as const).map((bg) => (
+                <button
+                  key={bg.id}
+                  onClick={() => void update({ background: bg.id } as Partial<typeof settings>)}
+                  className={`group relative flex h-[56px] flex-col items-start justify-end overflow-hidden rounded-xl border p-2 text-left transition ${
+                    (settings as unknown as { background: string }).background === bg.id
+                      ? 'border-violet-400/50 ring-2 ring-violet-400/30'
+                      : 'border-white/10 hover:border-white/20'
+                  }`}
+                  title={bg.label}
+                >
+                  <span
+                    className="absolute inset-0 opacity-90"
+                    style={{
+                      background:
+                        bg.id === 'neo-mesh'
+                          ? 'radial-gradient(60% 80% at 30% 10%, rgba(99,102,241,0.35), transparent 60%), linear-gradient(180deg,#0A0D1E,#060815)'
+                          : bg.id === 'minimal'
+                          ? 'radial-gradient(60% 60% at 50% 0%, rgba(99,102,241,0.16), transparent 60%), linear-gradient(180deg,#080A18,#070A16)'
+                          : bg.id === 'aurora'
+                          ? 'radial-gradient(60% 70% at 20% 0%, rgba(139,92,246,0.28), transparent 60%), radial-gradient(50% 60% at 85% 0%, rgba(6,182,214,0.22), transparent 60%), linear-gradient(180deg,#060815,#0A0D1E)'
+                          : bg.id === 'midnight'
+                          ? 'linear-gradient(180deg,#0F172A,#020617)'
+                          : 'linear-gradient(180deg,#F8FAFC,#EEF2FF)'
+                    }}
+                  />
+                  <span className="relative text-[11px] font-bold text-white drop-shadow" style={{ color: bg.id === 'clean-light' ? '#0F172A' : undefined }}>{bg.label}</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-slate-500">Clean minimalistic gradients — Minimal & Aurora are most subtle.</p>
+          </div>
+          <div className="mt-4">
+            <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">
               Accent color
             </span>
             <div className="flex gap-2">
-              {['#4F46E5', '#0EA5E9', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6'].map((color) => (
+              {['#6366f1', '#4F46E5', '#0EA5E9', '#06B6D4', '#8B5CF6', '#10B981'].map((color) => (
                 <button
                   key={color}
                   onClick={() => void update({ accentColor: color })}

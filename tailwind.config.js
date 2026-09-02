@@ -37,6 +37,11 @@ export default {
           emerald: '#10B981'
         }
       },
+      backgroundImage: {
+        'gradient-minimal': 'linear-gradient(180deg, #F8FAFC 0%, #EEF2FF 50%, #F1F5F9 100%)',
+        'gradient-aurora': 'radial-gradient(70% 50% at 50% 0%, rgba(99,102,241,0.08), transparent 60%), radial-gradient(50% 40% at 100% 0%, rgba(6,182,214,0.06), transparent 50%)',
+        'gradient-mesh': 'radial-gradient(80rem 55rem at 4% -10%, rgba(99,102,241,0.16), transparent 58%), radial-gradient(70rem 45rem at 98% -4%, rgba(6,182,214,0.10), transparent 52%)',
+      },
       borderRadius: {
         xl: '0.875rem',
         '2xl': '1.125rem',

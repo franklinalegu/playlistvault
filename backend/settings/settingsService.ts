@@ -13,7 +13,8 @@ import { setBinaryOverrides } from '../ffmpeg/binaries.js';
 export function createDefaultSettings(downloadsDir: string, firstRunComplete = true): AppSettings {
   return {
     theme: 'dark',
-    accentColor: '#4F46E5',
+    accentColor: '#6366f1',
+    background: 'neo-mesh',
     defaultDestination: downloadsDir,
     defaultOptions: { ...DEFAULT_DOWNLOAD_OPTIONS },
     maxConcurrentJobs: 1,
@@ -77,8 +78,9 @@ export class SettingsService {
     const needsPostAction = !current.postDownloadAction;
     const needsKeyboardShortcuts = current.keyboardShortcutsEnabled === undefined;
     const needsAutoUpdateYtDlp = current.autoUpdateYtDlp === undefined;
+    const needsBackground = (current as unknown as { background?: unknown }).background === undefined;
 
-    if (!needsOptions && !needsRecents && !needsCookieSource && !needsCookiesFile && !needsProxy && !needsPostAction && !needsKeyboardShortcuts && !needsAutoUpdateYtDlp) return;
+    if (!needsOptions && !needsRecents && !needsCookieSource && !needsCookiesFile && !needsProxy && !needsPostAction && !needsKeyboardShortcuts && !needsAutoUpdateYtDlp && !needsBackground) return;
 
     await this.store.write({
       ...defaults,
@@ -92,7 +94,8 @@ export class SettingsService {
       proxy: needsProxy ? defaults.proxy : current.proxy,
       postDownloadAction: needsPostAction ? defaults.postDownloadAction : current.postDownloadAction,
       keyboardShortcutsEnabled: needsKeyboardShortcuts ? defaults.keyboardShortcutsEnabled : current.keyboardShortcutsEnabled,
-      autoUpdateYtDlp: needsAutoUpdateYtDlp ? defaults.autoUpdateYtDlp : current.autoUpdateYtDlp
+      autoUpdateYtDlp: needsAutoUpdateYtDlp ? defaults.autoUpdateYtDlp : current.autoUpdateYtDlp,
+      background: needsBackground ? defaults.background : (current as unknown as { background: typeof defaults.background }).background
     });
   }
 
@@ -134,6 +137,9 @@ export class SettingsService {
     ).slice(0, 6);
     if (!/^#[0-9a-fA-F]{6}$/.test(next.accentColor)) {
       next.accentColor = previous.accentColor;
+    }
+    if (!['neo-mesh', 'minimal', 'aurora', 'midnight', 'clean-light'].includes(next.background as string)) {
+      next.background = previous.background ?? 'neo-mesh';
     }
     if (!['none', 'chrome', 'edge', 'firefox'].includes(next.browserCookieSource)) {
       next.browserCookieSource = previous.browserCookieSource;

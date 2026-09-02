@@ -4,8 +4,13 @@
 
 @layer base {
   :root {
-    --accent: #4f46e5;
-    --accent-soft: rgba(79, 70, 229, 0.16);
+    --accent: #6366f1;
+    --accent-soft: rgba(99, 102, 241, 0.12);
+    --bg-preset: neo;
+    /* clean minimalistic gradient tokens */
+    --grad-minimal-a: #6366f1;
+    --grad-minimal-b: #06b6d4;
+    --grad-minimal-c: #8b5cf6;
   }
 
   * {
@@ -23,13 +28,48 @@
     @apply bg-vault-950 text-slate-200 font-sans antialiased overflow-hidden;
     font-family: Outfit, system-ui, -apple-system, "Segoe UI", sans-serif;
     background:
-      radial-gradient(80rem 55rem at 4% -10%, rgba(99, 102, 241, 0.24), transparent 58%),
-      radial-gradient(70rem 45rem at 98% -4%, rgba(6, 182, 214, 0.16), transparent 52%),
-      radial-gradient(60rem 50rem at 50% 112%, rgba(139, 92, 246, 0.14), transparent 60%),
-      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.04) 1px, transparent 0),
-      radial-gradient(1px 1px at 70% 70%, rgba(255,255,255,0.03) 1px, transparent 0),
+      radial-gradient(80rem 55rem at 4% -10%, rgba(99, 102, 241, 0.18), transparent 58%),
+      radial-gradient(70rem 45rem at 98% -4%, rgba(6, 182, 214, 0.10), transparent 52%),
+      radial-gradient(60rem 50rem at 50% 112%, rgba(139, 92, 246, 0.09), transparent 60%),
       linear-gradient(180deg, #060815 0%, #0A0D1E 50%, #060815 100%);
     background-attachment: fixed;
+    transition: background 0.5s ease;
+  }
+
+  /* Minimalistic preset backgrounds — applied via data-bg on html */
+  html[data-bg="minimal"] body {
+    background:
+      radial-gradient(70rem 45rem at 50% -12%, rgba(99, 102, 241, 0.09), transparent 60%),
+      radial-gradient(55rem 40rem at 92% 18%, rgba(148, 163, 184, 0.06), transparent 55%),
+      linear-gradient(180deg, #080A18 0%, #0C1022 55%, #070A16 100%);
+  }
+  html[data-bg="aurora"] body {
+    background:
+      radial-gradient(75rem 50rem at 18% -10%, rgba(99, 102, 241, 0.14), transparent 62%),
+      radial-gradient(65rem 45rem at 88% -6%, rgba(6, 182, 214, 0.12), transparent 58%),
+      radial-gradient(70rem 48rem at 50% 110%, rgba(236, 72, 153, 0.07), transparent 62%),
+      linear-gradient(180deg, #060815 0%, #0A0D1E 100%);
+  }
+  html[data-bg="midnight"] body {
+    background:
+      radial-gradient(60rem 45rem at 50% -8%, rgba(51, 65, 85, 0.18), transparent 60%),
+      linear-gradient(180deg, #020617 0%, #0F172A 55%, #020617 100%);
+  }
+  html[data-bg="neo-mesh"] body {
+    background:
+      radial-gradient(80rem 55rem at 4% -10%, rgba(99, 102, 241, 0.18), transparent 58%),
+      radial-gradient(70rem 45rem at 98% -4%, rgba(6, 182, 214, 0.10), transparent 52%),
+      radial-gradient(60rem 50rem at 50% 112%, rgba(139, 92, 246, 0.09), transparent 60%),
+      linear-gradient(180deg, #060815 0%, #0A0D1E 50%, #060815 100%);
+  }
+  html[data-bg="clean-light"] body {
+    background:
+      radial-gradient(70rem 45rem at 50% -10%, rgba(99, 102, 241, 0.06), transparent 60%),
+      radial-gradient(55rem 40rem at 95% 10%, rgba(6, 182, 214, 0.05), transparent 55%),
+      linear-gradient(180deg, #F8FAFC 0%, #EEF2FF 55%, #F1F5F9 100%);
+  }
+  html[data-bg="clean-light"] {
+    color-scheme: light;
   }
 
   h1, h2, h3, h4 {
@@ -67,15 +107,22 @@
 }
 
 @layer components {
-  /* v6 — elevated glass with dual highlight + outer glow */
+  /* v6 — minimal glass with single highlight */
   .glass {
-    @apply rounded-2xl border border-white/[0.09] bg-white/[0.06] backdrop-blur-2xl shadow-glass;
+    @apply rounded-2xl border border-white/[0.07] bg-white/[0.04] backdrop-blur-xl shadow-glass;
     box-shadow:
       var(--tw-ring-offset-shadow, 0 0 #0000),
       var(--tw-ring-shadow, 0 0 #0000),
-      inset 0 1px 0 rgba(255, 255, 255, 0.09),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.03),
-      0 12px 48px rgba(0, 0, 0, 0.45);
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 8px 32px rgba(0, 0, 0, 0.32);
+  }
+  .glass--minimal {
+    @apply rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 20px rgba(0,0,0,0.24);
+  }
+  .glass--aurora {
+    @apply rounded-2xl border border-white/[0.08] bg-white/[0.05] backdrop-blur-xl;
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
   }
 
   html.light .glass {
@@ -113,13 +160,21 @@
 
   .btn-primary {
     @apply btn text-white shadow-glow;
+    /* clean minimalistic gradient: 2-stop, low saturation shift */
     background-image: linear-gradient(
       135deg,
-      color-mix(in srgb, var(--accent) 90%, white),
-      color-mix(in srgb, var(--accent) 58%, #06b6d4),
-      #8b5cf6
+      #6366f1 0%,
+      #5851ea 45%,
+      #4f46e5 100%
     );
-    background-size: 110% 110%;
+    background-size: 100% 100%;
+  }
+  .btn-primary--aurora {
+    background-image: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+  }
+  .btn-primary--minimal {
+    background-image: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.22);
   }
 
   .btn-primary:hover:not(:disabled) {

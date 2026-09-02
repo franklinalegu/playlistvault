@@ -19,7 +19,8 @@ interface SettingsContextValue {
 
 const FALLBACK: AppSettings = {
   theme: 'dark',
-  accentColor: '#4F46E5',
+  accentColor: '#6366f1',
+  background: 'neo-mesh',
   defaultDestination: '',
   defaultOptions: { ...DEFAULT_DOWNLOAD_OPTIONS },
   maxConcurrentJobs: 1,
@@ -79,6 +80,10 @@ export function SettingsProvider({ children }: { children: ReactNode }): JSX.Ele
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', settings.accentColor);
   }, [settings.accentColor]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-bg', settings.background ?? 'neo-mesh');
+  }, [settings.background]);
 
   const update = useCallback(async (patch: Partial<AppSettings>) => {
     // Optimistic update keeps toggles feeling instant.
