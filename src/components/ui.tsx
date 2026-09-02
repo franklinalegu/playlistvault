@@ -14,20 +14,23 @@ export function PageShell({
 }): JSX.Element {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="mx-auto w-full max-w-5xl px-8 py-7"
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      className="mx-auto w-full max-w-[1080px] px-8 py-7"
     >
-      <div className="mb-7 flex items-end justify-between gap-4">
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-gradient-to-br from-accent-400 to-sky-400 shadow-[0_0_8px_rgba(79,70,229,0.8)]" />
-            <h1 className="text-2xl font-semibold tracking-tight text-white">{title}</h1>
+      <div className="mb-8 flex items-start justify-between gap-6">
+        <div className="min-w-0">
+          <div className="mb-2 flex items-center gap-3">
+            <span className="hidden sm:inline-flex items-center rounded-full border border-violet-400/20 bg-gradient-to-r from-violet-500/20 to-cyan-400/15 px-2.5 py-1 text-[10px] font-black tracking-widest text-violet-200">
+              V6 · NEO
+            </span>
+            <span className="h-2 w-2 rounded-full bg-gradient-to-br from-violet-400 via-accent-400 to-cyan-400 shadow-[0_0_10px_rgba(99,102,241,0.9)]" />
+            <h1 className="text-[28px] font-extrabold tracking-[-0.04em] text-white">{title}</h1>
           </div>
-          {subtitle && <p className="pl-4 text-sm text-slate-400">{subtitle}</p>}
+          {subtitle && <p className="max-w-2xl pl-1 text-[13.5px] leading-relaxed text-slate-400">{subtitle}</p>}
         </div>
-        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        {actions && <div className="flex shrink-0 items-center gap-2 pt-1">{actions}</div>}
       </div>
       {children}
     </motion.div>
@@ -46,13 +49,13 @@ export function EmptyState({
   action?: ReactNode;
 }): JSX.Element {
   return (
-    <div className="glass flex flex-col items-center justify-center gap-3 px-8 py-16 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-transparent text-slate-500 shadow-inner">
-        <span className="animate-floaty text-3xl">{icon}</span>
+    <div className="glass flex flex-col items-center justify-center gap-4 px-8 py-14 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-violet-500/15 via-white/[0.06] to-cyan-400/10 text-slate-400 shadow-inner">
+        <span className="animate-floaty text-[28px]">{icon}</span>
       </div>
-      <h3 className="text-base font-semibold text-slate-200">{title}</h3>
-      <p className="max-w-sm text-sm leading-relaxed text-slate-500">{description}</p>
-      {action && <div className="mt-2">{action}</div>}
+      <h3 className="text-[15px] font-bold tracking-tight text-white">{title}</h3>
+      <p className="max-w-sm text-[13px] leading-relaxed text-slate-400">{description}</p>
+      {action && <div className="mt-1">{action}</div>}
     </div>
   );
 }
@@ -72,23 +75,25 @@ export function ProgressBar({
       aria-valuenow={indeterminate ? undefined : Math.round(value)}
       aria-valuemin={0}
       aria-valuemax={100}
-      className={`relative h-1.5 w-full overflow-hidden rounded-full bg-white/10 shadow-inner ${className}`}
+      className={`relative h-1.5 w-full overflow-hidden rounded-full bg-black/30 p-[1px] shadow-inner ${className}`}
     >
-      {indeterminate ? (
-        <div className="skeleton absolute inset-0" />
-      ) : (
-        <motion.div
-          className="relative h-full rounded-full"
-          style={{
-            backgroundImage:
-              'linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #0ea5e9))',
-            boxShadow: '0 0 10px rgba(79, 70, 229, 0.55)'
-          }}
-          initial={false}
-          animate={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-        />
-      )}
+      <div className="h-full w-full overflow-hidden rounded-full bg-white/10">
+        {indeterminate ? (
+          <div className="skeleton absolute inset-0" />
+        ) : (
+          <motion.div
+            className="relative h-full rounded-full"
+            style={{
+              backgroundImage:
+                'linear-gradient(90deg, #8b5cf6, var(--accent), #06b6d4)',
+              boxShadow: '0 0 12px rgba(99, 102, 241, 0.55)'
+            }}
+            initial={false}
+            animate={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -192,10 +197,11 @@ export function StatTile({
   hint?: string;
 }): JSX.Element {
   return (
-    <div className="surface px-3.5 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums text-white">{value}</p>
-      {hint && <p className="text-[11px] text-slate-500">{hint}</p>}
+    <div className="surface group relative overflow-hidden px-4 py-3.5 transition-all hover:border-white/15 hover:bg-white/[0.06]">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/20 to-cyan-400/20 opacity-0 transition-opacity group-hover:opacity-100" />
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</p>
+      <p className="mt-1.5 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-[18px] font-extrabold tabular-nums text-transparent">{value}</p>
+      {hint && <p className="mt-0.5 text-[11px] font-medium text-slate-500">{hint}</p>}
     </div>
   );
 }

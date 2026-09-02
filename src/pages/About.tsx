@@ -15,32 +15,34 @@ export function About(): JSX.Element {
   }, []);
 
   return (
-    <PageShell title="About" subtitle="Version information and credits.">
+    <PageShell title="About" subtitle="v6 · Neo — rebuilt for speed, auto yt-dlp, and clarity.">
       <div className="space-y-5">
-        <section className="glass flex items-center gap-5 p-6">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-accent-500 to-sky-500 shadow-glow">
-            <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none">
-              <path
-                d="M12 3.5 20 7v6.2c0 4.2-3.3 7-8 8.3-4.7-1.3-8-4.1-8-8.3V7l8-3.5Z"
-                stroke="white"
-                strokeWidth="1.6"
-                strokeLinejoin="round"
-              />
-              <path d="M9.6 9.8v5l4.6-2.5-4.6-2.5Z" fill="white" />
-            </svg>
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight text-white">PlaylistVault</h2>
-            <p className="mt-0.5 text-sm text-slate-400">
-              Version {info?.version ?? '—'} · {info?.platform ?? ''}
-            </p>
-            <p className="mt-2 max-w-md text-xs leading-relaxed text-slate-500">
-              A local-first playlist archiver. Everything runs on your machine — no accounts, no
-              telemetry, no cloud.
-            </p>
-            <p className="mt-2.5 text-xs text-slate-400">
-              Built by <span className="font-medium text-slate-200">Franklin Alegu (FA)</span>
-            </p>
+        <section className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-violet-500/15 via-accent-500/10 to-cyan-400/15 p-[1px] shadow-v6-glow">
+          <div className="flex items-center gap-5 rounded-[15px] bg-gradient-to-br from-vault-800/90 to-vault-900/70 p-6 backdrop-blur-xl">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 via-accent-500 to-cyan-400 shadow-glow">
+              <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none">
+                <path
+                  d="M12 3.5 20 7v6.2c0 4.2-3.3 7-8 8.3-4.7-1.3-8-4.1-8-8.3V7l8-3.5Z"
+                  stroke="white"
+                  strokeWidth="1.6"
+                  strokeLinejoin="round"
+                />
+                <path d="M9.6 9.8v5l4.6-2.5-4.6-2.5Z" fill="white" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-white">PlaylistVault <span className="rounded-full bg-gradient-to-r from-accent-500 to-cyan-400 px-2 py-0.5 text-[11px] font-black tracking-widest text-white">V6</span></h2>
+              <p className="mt-0.5 text-sm font-medium text-slate-300">
+                Version {info?.version ?? '—'} · {info?.platform ?? ''} · Neo engine
+              </p>
+              <p className="mt-2 max-w-md text-xs leading-relaxed text-slate-400">
+                A local-first playlist archiver. Everything runs on your machine — no accounts, no
+                telemetry, no cloud. v6 adds automatic yt-dlp updates and a Neo redesign.
+              </p>
+              <p className="mt-2.5 text-xs text-slate-400">
+                Built by <span className="font-semibold text-white">Franklin Alegu (FA)</span> · v6 rewrite
+              </p>
+            </div>
           </div>
         </section>
 

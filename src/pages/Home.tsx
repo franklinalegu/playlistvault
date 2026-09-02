@@ -187,16 +187,32 @@ export function Home(): JSX.Element {
   return (
     <PageShell
       title="Download a playlist"
-      subtitle="Paste a YouTube or Udemy playlist, course, video — or a whole YouTube channel — to get started."
+      subtitle="v6 · Paste a YouTube or Udemy playlist, course, video — or a whole channel. Neo engine handles the rest."
     >
+      {/* v6 Hero — prominent, unmistakably new */}
+      <div className="mb-6 rounded-[22px] border border-white/[0.08] bg-gradient-to-br from-violet-500/[0.09] via-accent-500/[0.07] to-cyan-400/[0.08] p-[1px] shadow-v6-glow">
+        <div className="rounded-[21px] bg-gradient-to-br from-vault-800/80 to-vault-900/60 p-5 backdrop-blur-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-accent-500 to-cyan-400 px-2.5 py-1 text-[11px] font-black tracking-widest text-white shadow">V6 · NEO</span>
+              <span className="text-xs font-semibold text-slate-300">Faster analyze · Auto yt-dlp · Cleaner queue</span>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">Drop a link anywhere on the window</span>
+          </div>
+        </div>
+      </div>
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
           void runAnalysis(url);
         }}
-        className="group mb-5 flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.05] p-2 shadow-glass backdrop-blur-xl transition-all duration-200 focus-within:border-accent/50 focus-within:shadow-glow"
+        className="group relative mb-6 flex items-center gap-2 rounded-[18px] border border-white/[0.10] bg-white/[0.06] p-2 shadow-glass backdrop-blur-2xl transition-all duration-300 focus-within:border-violet-400/50 focus-within:shadow-v6-glow focus-within:bg-white/[0.08]"
       >
-        <FiLink className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
+        <span className="pointer-events-none absolute inset-0 rounded-[18px] bg-gradient-to-r from-violet-500/10 via-accent-500/10 to-cyan-400/10 opacity-0 transition-opacity group-focus-within:opacity-100" />
+        <span className="relative ml-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent-500 to-cyan-400 shadow-glow">
+          <FiLink className="h-4 w-4 text-white" />
+        </span>
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
@@ -204,7 +220,7 @@ export function Home(): JSX.Element {
           aria-label="Playlist URL"
           autoFocus
           spellCheck={false}
-          className="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none"
+          className="relative min-w-0 flex-1 bg-transparent px-2 py-2.5 text-[14px] font-medium text-slate-100 placeholder:text-slate-500 focus:outline-none"
         />
         {url && (
           <button
@@ -233,9 +249,9 @@ export function Home(): JSX.Element {
             >
               <FiUpload className="h-4 w-4" />
             </button>
-            <button type="submit" disabled={!url.trim()} className="btn-primary shrink-0">
+            <button type="submit" disabled={!url.trim()} className="btn-primary relative shrink-0 px-5">
               <FiSearch className="h-4 w-4" />
-              Analyze
+              Analyze in v6
             </button>
           </>
         )}

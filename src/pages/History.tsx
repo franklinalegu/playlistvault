@@ -66,11 +66,11 @@ export function History(): JSX.Element {
 
   return (
     <PageShell
-      title="History"
+      title="Library"
       subtitle={
         entries.length
-          ? `${entries.length} downloads · ${totals.videos} videos · ${formatBytes(totals.bytes)}`
-          : 'Completed downloads appear here.'
+          ? `v6 library · ${entries.length} saves · ${totals.videos} videos · ${formatBytes(totals.bytes)}`
+          : 'Completed saves appear here — v6 keeps your offline library tidy.'
       }
       actions={
         entries.length > 0 ? (

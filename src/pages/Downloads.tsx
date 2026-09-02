@@ -28,8 +28,8 @@ export function Downloads(): JSX.Element {
 
   return (
     <PageShell
-      title="Downloads"
-      subtitle="Drag cards to reorder the queue. Jobs run from the top down."
+      title="Queue"
+      subtitle="v6 queue — drag to reorder, Neo engine runs top-down with auto yt-dlp."
       actions={
         hasFinished ? (
           <button onClick={() => void clearFinished()} className="btn-ghost">
@@ -39,20 +39,23 @@ export function Downloads(): JSX.Element {
         ) : undefined
       }
     >
-      <div className="mb-5 flex gap-1.5">
-        {(['all', 'active', 'finished'] as Filter[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition ${
-              filter === f
-                ? 'bg-accent/20 text-accent-200'
-                : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
-            }`}
-          >
-            {f}
-          </button>
-        ))}
+      <div className="mb-6 flex items-center gap-2">
+        <div className="flex rounded-full border border-white/[0.08] bg-black/20 p-1">
+          {(['all', 'active', 'finished'] as Filter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded-full px-4 py-1.5 text-xs font-bold capitalize tracking-wide transition ${
+                filter === f
+                  ? 'bg-gradient-to-r from-accent-500 to-cyan-400 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <span className="ml-2 hidden sm:inline text-xs font-medium text-slate-500">{visible.length} jobs</span>
       </div>
 
       {visible.length === 0 ? (

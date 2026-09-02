@@ -22,10 +22,13 @@
   body {
     @apply bg-vault-950 text-slate-200 font-sans antialiased overflow-hidden;
     font-family: Outfit, system-ui, -apple-system, "Segoe UI", sans-serif;
-    background-image:
-      radial-gradient(70rem 45rem at 8% -8%, rgba(79, 70, 229, 0.2), transparent 55%),
-      radial-gradient(60rem 40rem at 95% 2%, rgba(14, 165, 233, 0.12), transparent 50%),
-      radial-gradient(55rem 45rem at 45% 105%, rgba(147, 51, 234, 0.11), transparent 55%);
+    background:
+      radial-gradient(80rem 55rem at 4% -10%, rgba(99, 102, 241, 0.24), transparent 58%),
+      radial-gradient(70rem 45rem at 98% -4%, rgba(6, 182, 214, 0.16), transparent 52%),
+      radial-gradient(60rem 50rem at 50% 112%, rgba(139, 92, 246, 0.14), transparent 60%),
+      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.04) 1px, transparent 0),
+      radial-gradient(1px 1px at 70% 70%, rgba(255,255,255,0.03) 1px, transparent 0),
+      linear-gradient(180deg, #060815 0%, #0A0D1E 50%, #060815 100%);
     background-attachment: fixed;
   }
 
@@ -64,14 +67,15 @@
 }
 
 @layer components {
-  /* Core glassmorphism surface with a subtle top highlight. */
+  /* v6 — elevated glass with dual highlight + outer glow */
   .glass {
-    @apply rounded-2xl border border-white/[0.08] bg-white/[0.05] backdrop-blur-xl shadow-glass;
+    @apply rounded-2xl border border-white/[0.09] bg-white/[0.06] backdrop-blur-2xl shadow-glass;
     box-shadow:
       var(--tw-ring-offset-shadow, 0 0 #0000),
       var(--tw-ring-shadow, 0 0 #0000),
-      inset 0 1px 0 rgba(255, 255, 255, 0.07),
-      0 10px 40px rgba(0, 0, 0, 0.4);
+      inset 0 1px 0 rgba(255, 255, 255, 0.09),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.03),
+      0 12px 48px rgba(0, 0, 0, 0.45);
   }
 
   html.light .glass {
@@ -111,9 +115,11 @@
     @apply btn text-white shadow-glow;
     background-image: linear-gradient(
       135deg,
-      color-mix(in srgb, var(--accent) 88%, white),
-      color-mix(in srgb, var(--accent) 62%, #0ea5e9)
+      color-mix(in srgb, var(--accent) 90%, white),
+      color-mix(in srgb, var(--accent) 58%, #06b6d4),
+      #8b5cf6
     );
+    background-size: 110% 110%;
   }
 
   .btn-primary:hover:not(:disabled) {

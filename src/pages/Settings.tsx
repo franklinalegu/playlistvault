@@ -44,7 +44,7 @@ export function Settings(): JSX.Element {
   return (
     <PageShell
       title="Settings"
-      subtitle="Preferences are saved automatically."
+      subtitle="v6 preferences — everything saves instantly. Neo engine & auto yt-dlp below."
       actions={
         <button
           onClick={async () => {
