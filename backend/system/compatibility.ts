@@ -1,6 +1,5 @@
 import os from 'node:os';
 import fs from 'node:fs';
-import path from 'node:path';
 import { app } from 'electron';
 import { checkBinaries } from '../ffmpeg/binaries.js';
 
@@ -41,7 +40,7 @@ export interface CompatibilityReport {
 }
 
 // Version matrix — keep in sync with README/release notes
-const VERSION_REQUIREMENTS: Record<string, { minWinBuild: number; minMacOS: string; minRamGB: number; desc: string }> = {
+const _VERSION_REQUIREMENTS: Record<string, { minWinBuild: number; minMacOS: string; minRamGB: number; desc: string }> = {
   '6.0.0': { minWinBuild: 10240, minMacOS: '10.15', minRamGB: 4, desc: 'v6 Neo — Windows 10+ (build 10240), macOS 10.15+, 4GB RAM' },
   '5.2.9': { minWinBuild: 9600, minMacOS: '10.13', minRamGB: 2, desc: 'v5.2 — Windows 8.1+, macOS 10.13+, 2GB RAM' },
 };
@@ -67,7 +66,6 @@ function compareMacOS(a: string, b: string): number {
 
 function getDiskFreeGB(dir: string): number | null {
   try {
-    // @ts-ignore — statfsSync exists on Node 19+ but not in all type sets
     const stat = (() => { try { return (fs as unknown as { statfsSync: (p: string) => { bavail: number; bsize: number } }).statfsSync(dir); } catch { return null; } })();
     if (stat) return Math.round((stat.bavail * stat.bsize) / (1024 ** 3));
     return null;
@@ -83,7 +81,6 @@ export async function getSystemProfile(): Promise<SystemProfile> {
     platform: os.platform(),
     arch: os.arch(),
     osRelease: os.release(),
-    // @ts-ignore — os.version exists on Node 18+ but types may not include it in all envs
     osVersion: (() => { try { const v = (os as unknown as { version?: () => string }).version?.(); return v || os.release(); } catch { return os.release(); } })(),
     cpuCount: cpus.length,
     cpuModel: cpus[0]?.model ?? 'Unknown',

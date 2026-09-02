@@ -60,7 +60,6 @@ function refreshIconCache(): void {
           // Expand wildcard manually
           if (name.includes('*')) {
             const dir = path.dirname(pattern);
-            const base = path.basename(pattern).replace('*', '');
             if (fs.existsSync(dir)) {
               for (const f of fs.readdirSync(dir)) {
                 if (f.startsWith('IconCache') && f.endsWith('.db')) {

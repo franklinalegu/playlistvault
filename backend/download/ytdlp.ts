@@ -146,8 +146,8 @@ export function humanizeYtDlpError(stderr: string, code: number | null): string 
   if (text.includes('could not copy') && text.includes('cookie')) {
     return 'Could not read browser cookies — close the browser completely (check Task Manager for lingering chrome.exe) and retry, or export a cookies.txt file in Settings.';
   }
-  if (text.includes('signature solving failed') || text.includes('n challenge solving failed') || text.includes('only images are available') || text.includes('po token') || text.includes('visitor data')) {
-    return 'YouTube signature verification could not run. Update yt-dlp in Settings → Dependencies and ensure Node.js 18+ is available, then retry.';
+  if (text.includes('signature solving failed') || text.includes('n challenge solving failed') || text.includes('nsig') || text.includes('unable to extract') || text.includes('precondition check failed') || text.includes('only images are available') || text.includes('po token') || text.includes('visitor data')) {
+    return 'YouTube signature verification could not run. Update yt-dlp in Settings → Dependencies and ensure Node.js 18+ is available, then retry. If bulk fails (0/N), update yt-dlp and retry the whole job.';
   }
   if (text.includes('http error 403') || text.includes('403: forbidden') || text.includes('http error 403: forbidden')) {
     return 'YouTube denied the request (HTTP 403). Update yt-dlp in Settings → Dependencies, then retry with a signed-in browser session (close the browser first).';

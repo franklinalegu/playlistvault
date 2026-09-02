@@ -22,7 +22,7 @@ import { findInfoJson, readVideoLinks, cleanupInfoJson, type VideoLinks } from '
 import { writeManifest } from '../manifest/manifestWriter.js';
 import { JsonStore } from '../storage/jsonStore.js';
 import { log } from '../util/logger.js';
-import { resolveBinaries } from '../ffmpeg/binaries.js';
+import { resolveBinaries, checkBinaries } from '../ffmpeg/binaries.js';
 
 const MAX_ATTEMPTS = 3;
 const PROGRESS_THROTTLE_MS = 250;
@@ -359,6 +359,31 @@ export class DownloadManager extends EventEmitter {
     job.status = 'downloading';
     this.touch(job);
 
+    // Pre-flight: verify yt-dlp and FFmpeg are actually usable before burning 54 attempts.
+    // This turns the confusing "0/54 failed" wall into a single actionable message.
+    try {
+      const bins = await checkBinaries();
+      const yt = bins.find(b => b.name === 'yt-dlp');
+      const ff = bins.find(b => b.name === 'ffmpeg');
+      if (!yt?.found) {
+        const msg = yt?.error ?? 'yt-dlp is not installed. Open Settings → Dependencies to install it, then retry.';
+        log.error('download', `preflight yt-dlp missing: ${msg}`);
+        for (const item of job.items) { item.status = 'failed'; item.error = msg; }
+        job.status = 'failed';
+        job.completedAt = new Date().toISOString();
+        this.touch(job); this.emitProgress(job, true); this.emit('jobDone', job, this.toHistoryEntry(job, startedAt));
+        return;
+      }
+      if (!ff?.found) {
+        // FFmpeg is only required for merging; still warn early so user can fix before 54 failures
+        log.warn('download', `preflight ffmpeg missing: ${ff?.error ?? 'ffmpeg not found'}`);
+        // Don't fail outright — audio-only downloads may still work, but flag items
+        // We let the run continue; individual items will humanize to FFmpeg error if needed.
+      }
+    } catch (e) {
+      log.warn('download', `preflight check failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
     // Create the destination up front. If the drive is missing, read-only or
     // permission-denied this is where we find out — and the user must be told,
     // otherwise the job would sit at "downloading" forever.
@@ -392,6 +417,23 @@ export class DownloadManager extends EventEmitter {
         const item = queue[cursor++];
         if (!item || item.status !== 'queued') continue;
         await this.runItem(job, item);
+        // If the first item failed with a systemic error (missing/outdated yt-dlp, FFmpeg, antivirus),
+        // fail the rest immediately with the same actionable message instead of spawning 53 more doomed yt-dlps.
+        if ((item.status as string) === 'failed' && item.error && isSystemicFailure(item.error)) {
+          const remaining = queue.slice(cursor).filter((i: DownloadItem) => (i.status as string) === 'queued');
+          if (remaining.length > 0) {
+            log.warn('download', `systemic failure detected ("${item.error}") — failing ${remaining.length} remaining items without retry`);
+            for (const r of remaining) {
+              r.status = 'failed';
+              r.error = item.error;
+              r.progress = 0;
+              this.emit('itemDone', job, r);
+            }
+            // Consume the queue so workers exit
+            cursor = queue.length;
+            return;
+          }
+        }
       }
     };
 
@@ -788,6 +830,14 @@ function describeDestinationError(error: unknown, destination: string): string {
 
 function isPermanentFailure(message: string): boolean {
   return /private|members-only|unavailable|removed|age-restricted|not allowed|out of free space|Permission denied|was not found|read-only|too long for Windows|sign in to confirm|not a bot|confirm you.*are not a bot|could not copy.*cookie|http error 403|403: forbidden|forbidden.*denied|unsupported url|no longer supports|outdated version|requires a newer version|signature solving|n challenge solving|only images are available|po token|visitor data|yt-dlp is out of date|browser sign-in required|failed to start|exited unexpectedly/i.test(
+    message
+  );
+}
+
+function isSystemicFailure(message: string): boolean {
+  // Systemic = will fail for every video in the job (missing binary, outdated engine, FFmpeg broken)
+  // Per-video failures like private/unavailable are NOT systemic and should be retried per-item.
+  return /yt-dlp was not found|yt-dlp failed to start|yt-dlp exited unexpectedly|FFmpeg failed while merging|yt-dlp is out of date|signature solving|n challenge solving|po token|visitor data|outdated version|requires a newer version/i.test(
     message
   );
 }
