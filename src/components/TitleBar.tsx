@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom';
 import { FiActivity, FiDownloadCloud, FiSearch } from 'react-icons/fi';
 import { useQueue } from '@/contexts/QueueContext';
 import { formatSpeed } from '@shared/format';
+import { isStandalonePwa, isWebBuild } from '@/web/detect';
 
 const TITLES: Record<string, { title: string; section: string; desc: string }> = {
   '/': { title: 'Home', section: 'Workspace', desc: 'Analyze & queue' },
@@ -32,7 +33,17 @@ export function TitleBar(): JSX.Element {
         </div>
         <div className="hidden sm:block h-4 w-px bg-white/10" />
         <div>
-          <p className="text-[13px] font-bold tracking-tight text-white leading-none">{meta.title}</p>
+          <p className="flex items-center gap-2 text-[13px] font-bold tracking-tight text-white leading-none">
+            {meta.title}
+            {isWebBuild() && (
+              <span
+                className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-1.5 py-0.5 text-[9px] font-black tracking-widest text-cyan-200"
+                title={isStandalonePwa() ? 'Installed web app' : 'Web version — no install needed'}
+              >
+                {isStandalonePwa() ? 'APP' : 'WEB'}
+              </span>
+            )}
+          </p>
           <p className="text-[11px] font-medium text-slate-500 leading-none mt-0.5">{meta.desc}</p>
         </div>
       </div>

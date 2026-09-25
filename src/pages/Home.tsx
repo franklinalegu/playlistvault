@@ -12,6 +12,8 @@ import { PlaylistPanel } from '@/components/PlaylistPanel';
 import { OptionsPanel } from '@/components/OptionsPanel';
 import { BatchImportModal } from '@/components/BatchImportModal';
 import { EmptyState, PageShell, ProgressBar } from '@/components/ui';
+import { InstallButton } from '@/pwa/InstallButton';
+import { isStandalonePwa, isWebBuild } from '@/web/detect';
 
 export function Home(): JSX.Element {
   const { settings, update } = useSettings();
@@ -199,6 +201,19 @@ export function Home(): JSX.Element {
             </div>
             <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">Drop a link anywhere on the window</span>
           </div>
+          {isWebBuild() && !isStandalonePwa() && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
+              <p className="text-xs text-slate-300">
+                Running on the web — no install needed. Save to this device from the Queue, or install it as an app.
+              </p>
+              <div className="flex items-center gap-2">
+                <InstallButton compact />
+                <a href="/download" className="text-xs font-medium text-accent-300 hover:text-accent-200">
+                  Desktop apps →
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

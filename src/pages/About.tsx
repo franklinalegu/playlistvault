@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { FiDownloadCloud, FiExternalLink, FiShield } from 'react-icons/fi';
 import type { AppInfo, UpdateState } from '@shared/types';
 import { PageShell, ProgressBar } from '@/components/ui';
+import { InstallButton } from '@/pwa/InstallButton';
+import { isStandalonePwa, isWebBuild } from '@/web/detect';
 
 export function About(): JSX.Element {
   const [info, setInfo] = useState<AppInfo | null>(null);
@@ -43,6 +45,28 @@ export function About(): JSX.Element {
                 Built by <span className="font-semibold text-white">Franklin Alegu (FA)</span> · v6 rewrite
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="glass p-5">
+          <h3 className="mb-2 text-sm font-semibold text-white">
+            {isWebBuild() ? 'Web app — no install needed' : 'Web + install options'}
+          </h3>
+          <p className="mb-4 text-xs leading-relaxed text-slate-400">
+            {isWebBuild()
+              ? isStandalonePwa()
+                ? 'You are running the installed web app. It works offline for the shell; analysis and saves use the hosted service.'
+                : 'You are using PlaylistVault directly in the browser — nothing was installed. You can keep using it here or install it as an app.'
+              : 'Prefer the browser? The same app runs on the web with no install, and it is installable as a PWA.'}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <InstallButton compact />
+            <a href="/download" className="btn-ghost px-3 py-1 text-xs">
+              Get the desktop app
+            </a>
+            <a href="/download/android" className="btn-ghost px-3 py-1 text-xs">
+              Get the Android APK
+            </a>
           </div>
         </section>
 

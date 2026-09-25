@@ -7,7 +7,10 @@ import { createRequire } from 'node:module';
 
 const { version } = createRequire(import.meta.url)('./package.json');
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(({ command, mode }) => ({
+  // Relative base keeps the web build portable: Vercel (/) + PWA scope (./)
+  // + file:// (Electron/Capacitor) all resolve assets correctly.
+  base: './',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -17,6 +20,9 @@ export default defineConfig(({ command }) => ({
   },
   plugins: [
     react(),
+    // Web-only mode (`vite --mode web` / `npm run dev:web`): skip Electron so
+    // the dev server is a pure browser build for the hosted web app / PWA.
+    ...((mode === 'web') ? [] : [
     electron({
       main: {
         entry: 'electron/main/index.ts',
@@ -58,7 +64,8 @@ export default defineConfig(({ command }) => ({
         }
       }
     }),
-    renderer()
+    renderer(),
+    ]),
   ],
   build: {
     outDir: 'dist',

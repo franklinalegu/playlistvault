@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   FiAlertTriangle,
   FiChevronDown,
+  FiDownload,
   FiExternalLink,
   FiFileText,
   FiFolder,
@@ -15,6 +16,8 @@ import {
 import type { DownloadJob } from '@shared/types';
 import { formatBytes, formatEta, formatSpeed } from '@shared/format';
 import { ProgressBar, StatusPill } from './ui';
+import { isWebBuild } from '@/web/detect';
+import { webDownloadItem } from '@/web/vaultWeb';
 
 export function JobCard({
   job,
@@ -230,6 +233,16 @@ export function JobCard({
                     {item.totalBytes > 0 ? formatBytes(item.totalBytes) : ''}
                   </span>
                   <StatusPill status={item.status} />
+                  {isWebBuild() && item.sourceUrl && (
+                    <button
+                      title="Save to this device (web download)"
+                      aria-label={`Save ${item.title} to this device`}
+                      onClick={() => void webDownloadItem(item.sourceUrl!, item.title, job.options.quality, job.options.audioOnly)}
+                      className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-slate-100"
+                    >
+                      <FiDownload className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   {item.status === 'failed' && (
                     <IconButton label="Retry video" onClick={() => onRetryItem(item.id)}>
                       <FiRefreshCw className="h-3.5 w-3.5" />

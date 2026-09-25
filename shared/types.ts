@@ -133,6 +133,8 @@ export interface DownloadItem {
   attempts: number;
   startedAt?: string;
   completedAt?: string;
+  /** Web build: source page URL so the browser can save via /api/video. */
+  sourceUrl?: string;
   /**
    * Internal: set once a post-processor reports the definitive output path,
    * so later per-stream destination lines cannot overwrite it.

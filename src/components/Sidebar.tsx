@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { FiClock, FiDownload, FiHome, FiInfo, FiPlayCircle, FiSettings, FiZap } from 'react-icons/fi';
 import { useQueue } from '@/contexts/QueueContext';
 import { formatSpeed } from '@shared/format';
+import { InstallButton } from '@/pwa/InstallButton';
+import { isStandalonePwa, isWebBuild } from '@/web/detect';
 
 const LINKS = [
   { to: '/', label: 'Home', icon: FiHome, end: true, desc: 'Analyze' },
@@ -93,6 +95,20 @@ export function Sidebar(): JSX.Element {
 
       {/* Live status — elevated card */}
       <div className="mt-auto space-y-3">
+        {isWebBuild() && !isStandalonePwa() && (
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
+            <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+              {isStandalonePwa() ? 'Installed' : 'Use anywhere'}
+            </p>
+            <InstallButton />
+            <a
+              href="/download"
+              className="mt-2 block text-center text-[11px] font-medium text-slate-400 hover:text-slate-200"
+            >
+              Or get the desktop app →
+            </a>
+          </div>
+        )}
         <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-3.5 shadow-glass backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">

@@ -3,6 +3,21 @@ import ReactDOM from 'react-dom/client';
 import { Capacitor } from '@capacitor/core';
 import App from './App';
 import './styles/index.css';
+import { isWebBuild } from '@/web/detect';
+import { installWebVault } from '@/web/vaultWeb';
+import { registerWebServiceWorker } from '@/pwa/registerSW';
+
+// Web build (Vercel / installed PWA / plain browser): no Electron preload,
+// so install the REST + localStorage backed vault before React mounts.
+// This is what lets people use the app without installing anything, while
+// the PWA manifest + InstallButton still offer "install as an app".
+if (isWebBuild() && !(window as unknown as { vault?: unknown }).vault) {
+  installWebVault();
+} else if (isWebBuild() && (window as unknown as { vault?: { __pvWeb?: boolean } }).vault && !(window as unknown as { vault?: { queue?: { list?: unknown } } }).vault?.queue?.list) {
+  installWebVault();
+}
+
+registerWebServiceWorker();
 
 // On Android, Electron's window.vault is absent — provide a no-op so the UI
 // still renders (Downloads queue will use native bridge when implemented).
