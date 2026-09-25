@@ -88,7 +88,7 @@ export function DesktopDownloads(): JSX.Element {
         {items.map((d) => (
           <article
             key={`${d.title}-${d.links[0]?.href}`}
-            className={`flex items-center justify-between gap-3 rounded-xl border p-3.5 ${
+            className={`flex flex-col gap-3 rounded-xl border p-3.5 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between ${
               d.highlight
                 ? 'border-accent-400/40 bg-accent-500/[0.08]'
                 : 'border-white/[0.08] bg-white/[0.03]'
@@ -110,12 +110,12 @@ export function DesktopDownloads(): JSX.Element {
                 <p className="truncate text-[11px] text-slate-500">{d.sub}</p>
               </div>
             </div>
-            <div className="flex shrink-0 gap-1.5">
+            <div className="flex w-full gap-1.5 min-[480px]:w-auto min-[480px]:shrink-0">
               {d.links.map((l) => (
                 <a
                   key={l.href}
                   href={l.href}
-                  className={l.primary ? 'btn-primary px-3 py-1 text-xs' : 'btn-ghost px-3 py-1 text-xs'}
+                  className={l.primary ? 'btn-primary flex-1 justify-center px-3 py-1 text-xs min-[480px]:flex-none' : 'btn-ghost flex-1 justify-center px-3 py-1 text-xs min-[480px]:flex-none'}
                 >
                   <FiDownload className="h-3 w-3" />
                   {l.label}

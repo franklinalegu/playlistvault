@@ -13,6 +13,7 @@ import { OptionsPanel } from '@/components/OptionsPanel';
 import { BatchImportModal } from '@/components/BatchImportModal';
 import { EmptyState, PageShell, ProgressBar } from '@/components/ui';
 import { InstallButton } from '@/pwa/InstallButton';
+import { GetDesktopApp } from '@/components/GetDesktopApp';
 import { isStandalonePwa, isWebBuild } from '@/web/detect';
 
 export function Home(): JSX.Element {
@@ -217,6 +218,8 @@ export function Home(): JSX.Element {
         </div>
       </div>
 
+      {isWebBuild() && <GetDesktopApp />}
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -381,6 +384,11 @@ export function Home(): JSX.Element {
                     >
                       Update yt-dlp
                     </button>
+                    {isWebBuild() && (
+                      <a href="/download" className="btn-primary px-3 py-1 text-xs">
+                        <FiDownload className="h-3 w-3" /> Get the desktop app
+                      </a>
+                    )}
                   </>
                 );
               })()}
@@ -431,7 +439,7 @@ export function Home(): JSX.Element {
               }}
             />
 
-            <div className="sticky bottom-0 -mx-8 border-t border-white/[0.07] bg-vault-950/80 px-8 py-4 backdrop-blur-xl">
+            <div className="sticky bottom-0 -mx-4 border-t border-white/[0.07] bg-vault-950/80 px-4 py-4 backdrop-blur-xl sm:-mx-8 sm:px-8">
               <div className="flex items-center justify-between gap-4">
                 <p className="text-xs text-slate-500">
                   {selected.size} of {playlist.videoCount} selected · Ctrl+Enter to start

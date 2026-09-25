@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiClock, FiDownload, FiHome, FiInfo, FiPlayCircle, FiSettings, FiZap } from 'react-icons/fi';
+import { FiClock, FiDownload, FiHome, FiInfo, FiPlayCircle, FiSettings, FiX, FiZap } from 'react-icons/fi';
 import { useQueue } from '@/contexts/QueueContext';
 import { formatSpeed } from '@shared/format';
 import { InstallButton } from '@/pwa/InstallButton';
@@ -15,7 +15,45 @@ const LINKS = [
   { to: '/about', label: 'About', icon: FiInfo, end: false, desc: 'v6 · Neo' }
 ];
 
-export function Sidebar(): JSX.Element {
+export function Sidebar({
+  mobileOpen = false,
+  onClose,
+}: {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}): JSX.Element {
+  return (
+    <>
+      {/* Desktop: fixed sidebar. Hidden below lg — mobile uses the drawer. */}
+      <aside className="relative hidden w-[268px] shrink-0 flex-col border-r border-white/[0.08] bg-vault-900/55 px-3.5 pb-4 pt-4 backdrop-blur-2xl lg:flex">
+        <SidebarBody />
+      </aside>
+
+      {/* Mobile: slide-over drawer. */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-label="Navigation">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          <div className="absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col overflow-y-auto border-r border-white/[0.08] bg-vault-900 px-3.5 pb-4 pt-4">
+            <button
+              onClick={onClose}
+              aria-label="Close navigation"
+              className="mb-2 self-end rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-slate-100"
+            >
+              <FiX className="h-5 w-5" />
+            </button>
+            <SidebarBody onNavigate={onClose} />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SidebarBody({ onNavigate }: { onNavigate?: () => void }): JSX.Element {
   const { jobs } = useQueue();
 
   const activeJobs = jobs.filter(
@@ -28,7 +66,7 @@ export function Sidebar(): JSX.Element {
     .reduce((sum, i) => sum + i.speedBytesPerSecond, 0);
 
   return (
-    <aside className="relative flex w-[268px] shrink-0 flex-col border-r border-white/[0.08] bg-vault-900/55 px-3.5 pb-4 pt-4 backdrop-blur-2xl">
+    <>
       {/* Brand — v6 */}
       <div className="mb-6 flex items-center gap-3 px-1.5 pt-1">
         <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 via-accent-500 to-cyan-400 shadow-v6-glow">
@@ -64,6 +102,7 @@ export function Sidebar(): JSX.Element {
             key={to}
             to={to}
             end={end}
+            onClick={onNavigate}
             className={({ isActive }) => `nav-link no-drag group ${isActive ? 'nav-link-active bg-white/[0.09] text-white shadow-inner border border-white/[0.06]' : 'border border-transparent hover:border-white/[0.06]'}`}
           >
             {({ isActive }) => (
@@ -94,7 +133,7 @@ export function Sidebar(): JSX.Element {
       </nav>
 
       {/* Live status — elevated card */}
-      <div className="mt-auto space-y-3">
+      <div className="mt-auto space-y-3 pt-4">
         {isWebBuild() && !isStandalonePwa() && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
             <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
@@ -103,6 +142,7 @@ export function Sidebar(): JSX.Element {
             <InstallButton />
             <a
               href="/download"
+              onClick={onNavigate}
               className="mt-2 block text-center text-[11px] font-medium text-slate-400 hover:text-slate-200"
             >
               Or get the desktop app →
@@ -148,7 +188,7 @@ export function Sidebar(): JSX.Element {
           v6 redesigned for speed. Only save content you have rights to.
         </p>
       </div>
-    </aside>
+    </>
   );
 }
 

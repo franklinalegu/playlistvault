@@ -1,4 +1,5 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { SettingsProvider } from '@/contexts/SettingsContext';
 import { ToastProvider } from '@/contexts/ToastContext';
@@ -18,6 +19,8 @@ import { Settings } from '@/pages/Settings';
 import { About } from '@/pages/About';
 
 export default function App(): JSX.Element {
+  // Mobile drawer navigation (desktop keeps the fixed sidebar).
+  const [mobileNav, setMobileNav] = useState(false);
   return (
     <ErrorBoundary>
       <ToastProvider>
@@ -30,9 +33,9 @@ export default function App(): JSX.Element {
               <FirstRunWizard>
               <Background />
               <div className="flex h-full">
-                <Sidebar />
+                <Sidebar mobileOpen={mobileNav} onClose={() => setMobileNav(false)} />
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <TitleBar />
+                  <TitleBar onMenu={() => setMobileNav(true)} />
                   <main className="flex-1 overflow-y-auto">
                     <AnimatePresence mode="wait">
                       <Routes>

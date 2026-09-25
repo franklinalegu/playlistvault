@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom';
-import { FiActivity, FiDownloadCloud, FiSearch } from 'react-icons/fi';
+import { FiActivity, FiDownloadCloud, FiMenu, FiSearch } from 'react-icons/fi';
 import { useQueue } from '@/contexts/QueueContext';
 import { formatSpeed } from '@shared/format';
 import { isStandalonePwa, isWebBuild } from '@/web/detect';
@@ -12,7 +12,7 @@ const TITLES: Record<string, { title: string; section: string; desc: string }> =
   '/about': { title: 'About', section: 'PlaylistVault', desc: 'v6 · Neo' }
 };
 
-export function TitleBar(): JSX.Element {
+export function TitleBar({ onMenu }: { onMenu?: () => void }): JSX.Element {
   const { pathname } = useLocation();
   const { jobs } = useQueue();
 
@@ -25,8 +25,17 @@ export function TitleBar(): JSX.Element {
   const meta = TITLES[pathname] ?? { title: 'PlaylistVault', section: 'v6', desc: 'Neo' };
 
   return (
-    <header className="drag-region relative flex h-[52px] shrink-0 items-center justify-between gap-4 border-b border-white/[0.07] bg-vault-950/55 px-5 backdrop-blur-2xl">
-      <div className="flex items-center gap-3">
+    <header className="drag-region relative flex h-[52px] shrink-0 items-center justify-between gap-4 border-b border-white/[0.07] bg-vault-950/55 px-3 sm:px-5 backdrop-blur-2xl">
+      <div className="flex min-w-0 items-center gap-3">
+        {onMenu && (
+          <button
+            onClick={onMenu}
+            aria-label="Open navigation"
+            className="no-drag shrink-0 rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white lg:hidden"
+          >
+            <FiMenu className="h-5 w-5" />
+          </button>
+        )}
         <div className="hidden sm:flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1">
           <FiActivity className="h-3 w-3 text-violet-300" />
           <span className="text-[11px] font-bold tracking-widest text-slate-300">{meta.section}</span>

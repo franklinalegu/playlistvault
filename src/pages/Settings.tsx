@@ -17,6 +17,8 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/contexts/ToastContext';
 import { PageShell, ProgressBar, Select, Toggle } from '@/components/ui';
 import { CompatibilityPanel } from '@/components/CompatibilityBanner';
+import { GetDesktopApp } from '@/components/GetDesktopApp';
+import { isWebBuild } from '@/web/detect';
 
 export function Settings(): JSX.Element {
   const { settings, update, reset } = useSettings();
@@ -486,6 +488,14 @@ export function Settings(): JSX.Element {
           }
         >
           <div className="space-y-3">
+            {isWebBuild() && (
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
+                <p className="mb-3 text-xs leading-relaxed text-slate-400">
+                  The web app uses the hosted service — dependencies come bundled in the desktop app instead.
+                </p>
+                <GetDesktopApp compact />
+              </div>
+            )}
             {binaries.map((bin) => {
               const p = depProgress[bin.name];
               const isInstalling = installing === bin.name || (p && p.stage === 'downloading' && !bin.found);

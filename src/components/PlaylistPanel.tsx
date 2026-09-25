@@ -75,7 +75,7 @@ export function PlaylistPanel({
             {playlist.creator}
           </p>
 
-          <div className="mt-3 grid grid-cols-4 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <StatTile label="Videos" value={String(playlist.videoCount)} />
             <StatTile
               label="Duration"

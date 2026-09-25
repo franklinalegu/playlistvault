@@ -63,7 +63,7 @@ export function JobCard({
   return (
     <motion.article layout className="glass overflow-hidden">
       <div className="flex gap-4 p-4">
-        <div className="relative h-[62px] w-[110px] shrink-0 overflow-hidden rounded-lg bg-vault-800 shadow-inner">
+        <div className="relative h-[52px] w-[84px] shrink-0 overflow-hidden rounded-lg bg-vault-800 shadow-inner sm:h-[62px] sm:w-[110px]">
           {job.playlistThumbnail && (
             <img src={job.playlistThumbnail} alt="" className="h-full w-full object-cover" />
           )}

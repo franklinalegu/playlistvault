@@ -17,16 +17,16 @@ export function PageShell({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-      className="mx-auto w-full max-w-[1080px] px-8 py-7"
+      className="mx-auto w-full max-w-[1080px] px-4 py-5 sm:px-8 sm:py-7"
     >
-      <div className="mb-8 flex items-start justify-between gap-6">
+      <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="min-w-0">
           <div className="mb-2 flex items-center gap-3">
             <span className="hidden sm:inline-flex items-center rounded-full border border-violet-400/20 bg-gradient-to-r from-violet-500/20 to-cyan-400/15 px-2.5 py-1 text-[10px] font-black tracking-widest text-violet-200">
               V6 · NEO
             </span>
-            <span className="h-2 w-2 rounded-full bg-gradient-to-br from-violet-400 via-accent-400 to-cyan-400 shadow-[0_0_10px_rgba(99,102,241,0.9)]" />
-            <h1 className="text-[28px] font-extrabold tracking-[-0.04em] text-white">{title}</h1>
+            <span className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-violet-400 via-accent-400 to-cyan-400 shadow-[0_0_10px_rgba(99,102,241,0.9)]" />
+            <h1 className="min-w-0 truncate text-[22px] font-extrabold tracking-[-0.04em] text-white sm:text-[28px]">{title}</h1>
           </div>
           {subtitle && <p className="max-w-2xl pl-1 text-[13.5px] leading-relaxed text-slate-400">{subtitle}</p>}
         </div>
