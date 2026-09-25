@@ -2,7 +2,7 @@
   "name": "PlaylistVault — Save playlists for offline viewing",
   "short_name": "PlaylistVault",
   "description": "Analyze YouTube playlists and Udemy courses in the browser. Install as an app or use instantly on the web.",
-  "start_url": "./#/web",
+  "start_url": "./#/",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

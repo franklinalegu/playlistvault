@@ -3,6 +3,7 @@ import { FiDownloadCloud, FiExternalLink, FiShield } from 'react-icons/fi';
 import type { AppInfo, UpdateState } from '@shared/types';
 import { PageShell, ProgressBar } from '@/components/ui';
 import { InstallButton } from '@/pwa/InstallButton';
+import { DesktopDownloads } from '@/components/DesktopDownloads';
 import { isStandalonePwa, isWebBuild } from '@/web/detect';
 
 export function About(): JSX.Element {
@@ -59,15 +60,13 @@ export function About(): JSX.Element {
                 : 'You are using PlaylistVault directly in the browser — nothing was installed. You can keep using it here or install it as an app.'
               : 'Prefer the browser? The same app runs on the web with no install, and it is installable as a PWA.'}
           </p>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             <InstallButton compact />
-            <a href="/download" className="btn-ghost px-3 py-1 text-xs">
-              Get the desktop app
-            </a>
-            <a href="/download/android" className="btn-ghost px-3 py-1 text-xs">
-              Get the Android APK
-            </a>
           </div>
+          <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-widest text-slate-400">
+            Desktop apps — download on request
+          </h4>
+          <DesktopDownloads />
         </section>
 
         <section className="glass p-5">

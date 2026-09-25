@@ -70,12 +70,43 @@ Configure Android SDK range in `android/variables.gradle` (`minSdkVersion 29` = 
 
 The Windows installer lets the user choose the install directory, creates desktop and Start Menu shortcuts, registers an uninstall entry, and supports automatic updates via `electron-updater`. Installed apps check after startup, when connectivity returns, and periodically while running; updates download in the background and install on restart. macOS releases are distributed as DMG and ZIP files and require Apple signing/notarization for reliable automatic updates and a warning-free first launch.
 
+## Web version
+
+The same app runs **directly in the browser — no install needed** — and is installable as a **PWA** (Chromium install prompt, or Safari Share → Add to Home Screen on iOS). Queue, library, settings and history persist in browser storage.
+
+```bash
+npm run dev:web     # pure browser dev server -> http://localhost:5183/
+npm run build:web   # web build -> dist/ (also used by Vercel)
+```
+
+When the bundle runs over `http(s)` instead of Electron, it installs a REST + localStorage backed `window.vault` (`src/web/vaultWeb.ts`), so every page works unmodified: analysis via `POST /api/analyze`, per-file saves via `GET /api/video`, and an offline app shell via `public/sw.js`.
+
+### Deploying to Vercel
+
+Import the repo — `vercel.json` already sets build `npm run build:web`, output `dist`, PWA headers and the `/download` rewrites. No env vars required.
+
+### API
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/analyze` `{ url, quality }` | Playlist/video metadata. Uses server-side `yt-dlp` when available; single YouTube videos fall back to oEmbed; playlists without `yt-dlp` return `503` with `code: 'YTDLP_MISSING'`. |
+| `GET /api/video?url=&quality=&audioOnly=` | Streams one video to the browser for saving (File System Access API or anchor download). |
+| `/download`, `/download/windows/portable`, `/download/mac[/intel\|/apple-silicon][/zip]`, `/download/android` | Newest native installers, resolved from the latest GitHub Release (see `api/download.js`). |
+
+The About page lists **every desktop build for download on request**, with the matching installer highlighted for the visitor's OS. `/download` alone auto-detects the platform from the user agent.
+
+### Full playlists on the web (self-hosting)
+
+Vercel serverless functions have short timeouts and no `yt-dlp` binary, so hosted analysis is limited (singles work, large playlists may not). For full playlist power, self-host the API on any Node box with `yt-dlp` on `PATH` and point the web build at it — the endpoints stream results the same way, with longer timeouts and real binaries.
+
 ## Scripts
 
 | Script | Purpose |
 | --- | --- |
 | `npm run dev` | Vite dev server + Electron with HMR |
+| `npm run dev:web` | Vite dev server in pure browser (web/PWA) mode — no Electron |
 | `npm run build` | Typecheck, then build renderer, main and preload |
+| `npm run build:web` | Typecheck, then build the web app to `dist/` (Vercel uses this) |
 | `npm run typecheck` | `tsc --noEmit` across both app and Node configs |
 | `npm test` | Run the Vitest suite (45 tests) |
 | `npm run test:watch` | Vitest in watch mode |
@@ -92,6 +123,17 @@ PlaylistVault/
 ├── electron/
 │   ├── main/            # App lifecycle, window, IPC, updater, clipboard watcher
 │   └── preload/         # contextBridge — the only renderer↔main surface
+├── api/                 # Hosted web endpoints (Vercel serverless)
+│   ├── analyze.js       # POST playlist/video metadata (yt-dlp + oEmbed fallback)
+│   ├── video.js         # GET single-video stream for browser saves
+│   └── download.js      # /download — newest native installers per platform
+├── public/              # Web/PWA shell (copied to dist/)
+│   ├── manifest.webmanifest  # Installable PWA metadata
+│   ├── sw.js            # Offline app-shell cache (API never cached)
+│   └── icons/           # PWA + favicon assets
+├── src/
+│   ├── web/             # Browser vault (REST + localStorage window.vault)
+│   └── pwa/             # Install prompt hook + button, SW registration
 ├── backend/             # Pure Node services (no Electron imports where avoidable)
 │   ├── download/        # Queue manager, yt-dlp spawn wrapper, format + progress parsing
 │   ├── manifest/        # Description-link extraction and the HTML/JSON resource index
