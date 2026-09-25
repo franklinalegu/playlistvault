@@ -14,7 +14,7 @@ import {
   FiX
 } from 'react-icons/fi';
 import type { DownloadJob } from '@shared/types';
-import { formatBytes, formatEta, formatSpeed } from '@shared/format';
+import { formatBytes, formatEta, formatSpeed, toDisplayTitle } from '@shared/format';
 import { ProgressBar, StatusPill } from './ui';
 import { isWebBuild } from '@/web/detect';
 import { webDownloadItem } from '@/web/vaultWeb';
@@ -75,7 +75,7 @@ export function JobCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold text-white">{job.playlistTitle}</h3>
+              <h3 className="truncate text-sm font-semibold text-white">{toDisplayTitle(job.playlistTitle)}</h3>
               <p className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
                 <StatusPill status={job.status} />
                 <span className="tabular-nums">
@@ -216,7 +216,7 @@ export function JobCard({
                     {item.index}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs text-slate-300">{item.title}</p>
+                    <p className="truncate text-xs text-slate-300">{toDisplayTitle(item.title)}</p>
                     {item.error ? (
                       <p className="truncate text-[11px] text-rose-400/80" title={item.error}>
                         {item.error}
@@ -236,7 +236,7 @@ export function JobCard({
                   {isWebBuild() && item.sourceUrl && (
                     <button
                       title="Save to this device (web download)"
-                      aria-label={`Save ${item.title} to this device`}
+                      aria-label={`Save ${toDisplayTitle(item.title)} to this device`}
                       onClick={() => void webDownloadItem(item.sourceUrl!, item.title, job.options.quality, job.options.audioOnly)}
                       className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-slate-100"
                     >

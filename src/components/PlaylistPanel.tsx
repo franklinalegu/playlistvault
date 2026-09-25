@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiAlertCircle, FiCheckSquare, FiSearch, FiSquare, FiUser, FiVideo } from 'react-icons/fi';
 import type { PlaylistInfo } from '@shared/types';
-import { formatBytes, formatDuration, formatLongDuration } from '@shared/format';
+import { formatBytes, formatDuration, formatLongDuration, toDisplayTitle } from '@shared/format';
 import { StatTile } from './ui';
 
 export function PlaylistPanel({
@@ -58,7 +58,7 @@ export function PlaylistPanel({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h2 className="truncate text-lg font-semibold tracking-tight text-white">
-              {playlist.title}
+              {toDisplayTitle(playlist.title)}
             </h2>
             <span
               className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
@@ -146,7 +146,7 @@ export function PlaylistPanel({
                   {video.index}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm text-slate-300">
-                  {video.title}
+                  {toDisplayTitle(video.title)}
                 </span>
                 {video.unavailableReason ? (
                   <span className="shrink-0 text-[11px] text-amber-400/80">

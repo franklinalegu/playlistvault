@@ -8,6 +8,7 @@ import {
   type ReactNode
 } from 'react';
 import type { DownloadJob, JobProgressSnapshot } from '@shared/types';
+import { toDisplayTitle } from '@shared/format';
 import { useToast } from './ToastContext';
 
 interface QueueContextValue {
@@ -61,7 +62,7 @@ export function QueueProvider({ children }: { children: ReactNode }): JSX.Elemen
       toast({
         kind: entry.videosFailed > 0 ? 'warning' : 'success',
         title: entry.videosFailed > 0 ? 'Finished with errors' : 'Download complete',
-        description: `${job.playlistTitle} — ${entry.videosCompleted} saved${
+        description: `${toDisplayTitle(job.playlistTitle)} — ${entry.videosCompleted} saved${
           entry.videosFailed ? `, ${entry.videosFailed} failed` : ''
         }.`,
         action: {

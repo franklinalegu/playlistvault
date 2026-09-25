@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FiClock, FiFolder, FiPlay, FiSearch, FiFilm, FiExternalLink } from 'react-icons/fi';
 import type { LocalVideo } from '@shared/types';
-import { formatBytes } from '@shared/format';
+import { formatBytes, toDisplayTitle } from '@shared/format';
 import { PageShell, EmptyState } from '@/components/ui';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { isWebBuild } from '@/web/detect';
+import { openWebMedia } from '@/web/vaultWeb';
 
 export function Player(): JSX.Element {
   const [videos, setVideos] = useState<LocalVideo[]>([]);
   const [query, setQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  /** Web library files have no persistent URL — resolved to a blob URL on select. */
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   const load = async (): Promise<void> => {
     setLoading(true);
@@ -28,6 +32,27 @@ export function Player(): JSX.Element {
 
   const activeIdx = filtered.findIndex(v => v.id === activeId);
   const active = activeIdx >= 0 ? filtered[activeIdx] : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    let url: string | null = null;
+    if (!active || !isWebBuild() || active.fileUrl) {
+      setBlobUrl(null);
+      return;
+    }
+    void openWebMedia(active).then((u) => {
+      if (cancelled) {
+        if (u) URL.revokeObjectURL(u);
+        return;
+      }
+      url = u;
+      setBlobUrl(u);
+    });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [active]);
 
   const next = (): void => {
     if (activeIdx < 0 || activeIdx >= filtered.length - 1) return;
@@ -49,8 +74,8 @@ export function Player(): JSX.Element {
       {active && (
         <div className="mb-6">
           <VideoPlayer
-            src={active.fileUrl}
-            title={active.title}
+            src={blobUrl ?? active.fileUrl}
+            title={toDisplayTitle(active.title)}
             hasNext={activeIdx < filtered.length - 1}
             hasPrev={activeIdx > 0}
             onNext={next}
@@ -58,14 +83,21 @@ export function Player(): JSX.Element {
             onEnded={next}
           />
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            <span className="truncate">{active.playlistTitle ?? ''}</span>
+            <span className="truncate">{active.playlistTitle ? toDisplayTitle(active.playlistTitle) : ''}</span>
             <span>·</span>
             <span>{formatBytes(active.sizeBytes)}</span>
             <span>·</span>
             <span>{new Date(active.modifiedAt).toLocaleString()}</span>
-            <button onClick={() => void window.vault.media.reveal(active.filePath)} className="ml-auto inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs hover:bg-white/10">
-              <FiFolder className="h-3 w-3" /> Show in folder
-            </button>
+            {isWebBuild() ? (
+              <span className="ml-auto inline-flex max-w-full items-center gap-1 truncate rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs" title={active.filePath}>
+                <FiFolder className="h-3 w-3 shrink-0" />
+                <span className="truncate">{active.filePath}</span>
+              </span>
+            ) : (
+              <button onClick={() => void window.vault.media.reveal(active.filePath)} className="ml-auto inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs hover:bg-white/10">
+                <FiFolder className="h-3 w-3" /> Show in folder
+              </button>
+            )}
             {active.sourceUrl && (
               <button onClick={() => void window.vault.system.openExternal(active.sourceUrl!)} className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs hover:bg-white/10">
                 <FiExternalLink className="h-3 w-3" /> Source
@@ -114,9 +146,9 @@ export function Player(): JSX.Element {
                 <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white">{v.container.toUpperCase()}</span>
               </div>
               <div className="p-3">
-                <p className="line-clamp-2 text-sm font-semibold leading-tight text-white">{v.title}</p>
+                <p className="line-clamp-2 text-sm font-semibold leading-tight text-white">{toDisplayTitle(v.title)}</p>
                 <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] text-slate-400">
-                  {v.playlistTitle && <><span className="truncate">{v.playlistTitle}</span><span>·</span></>}
+                  {v.playlistTitle && <><span className="truncate">{toDisplayTitle(v.playlistTitle)}</span><span>·</span></>}
                   <span className="inline-flex items-center gap-1"><FiClock className="h-3 w-3" />{formatBytes(v.sizeBytes)}</span>
                 </p>
               </div>

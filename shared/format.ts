@@ -54,3 +54,17 @@ export function estimateBytes(durationSeconds: number, quality: string): number 
   const rate = BITRATE_BYTES_PER_SECOND[quality] ?? BITRATE_BYTES_PER_SECOND['1080p'];
   return Math.round(durationSeconds * rate);
 }
+
+/**
+ * Content titles never render hyphens or dashes: "WordPress - And Elementor"
+ * becomes "WordPress And Elementor", "my_video-title" becomes "my video
+ * title". Applies to video/playlist titles from metadata or filenames only —
+ * product copy (e.g. "yt-dlp") is untouched.
+ */
+export function toDisplayTitle(title: string): string {
+  if (!title) return title;
+  return title
+    .replace(/[-_‐‑‒–—―−]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}

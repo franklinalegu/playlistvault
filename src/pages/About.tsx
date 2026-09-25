@@ -129,6 +129,7 @@ export function About(): JSX.Element {
           </p>
         </section>
 
+        {!isWebBuild() && (
         <section className="glass p-5">
           <h3 className="mb-3 text-sm font-semibold text-white">Built with</h3>
           <div className="flex flex-wrap gap-2">
@@ -151,6 +152,7 @@ export function About(): JSX.Element {
             ))}
           </div>
         </section>
+        )}
       </div>
     </PageShell>
   );

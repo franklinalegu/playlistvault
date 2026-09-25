@@ -6,11 +6,13 @@
  * every page/component keeps working unmodified:
  *
  * - playlist.analyze -> POST /api/analyze (server runs yt-dlp when available)
- * - queue.*          -> localStorage-backed queue; files download through
- *                       /api/video (server streams via yt-dlp) or the browser
- *                       File System Access API where supported
+ * - queue.*          -> localStorage-backed queue pumped by the in-browser
+ *                       engine (src/web/engine.ts): streams each file from
+ *                       /api/video into the picked library folder, with live
+ *                       progress, history entries and completion toasts
  * - history/settings -> localStorage
  * - system dialogs   -> File System Access API with graceful fallbacks
+ * - media.list       -> files in the picked library folder + saved records
  */
 import type {
   AnalyzeRequest,
@@ -22,8 +24,6 @@ import type {
   DependencyName,
   DependencyProgress,
   DownloadJob,
-  HistoryEntry,
-  JobProgressSnapshot,
   LocalVideo,
   PlaylistInfo,
   StartJobRequest,
@@ -31,104 +31,31 @@ import type {
   UpdateState,
   YtDlpUpdateStatus,
 } from '@shared/types';
-import { DEFAULT_DOWNLOAD_OPTIONS } from '@shared/types';
+import {
+  LS_SETTINGS,  WEB_DEFAULT_SETTINGS,
+  emitProgress,
+  fail,
+  loadHistory,
+  loadJobs,
+  loadSaves,
+  ok,
+  readJson,
+  recordSave,
+  safeFilename,
+  saveHistory,
+  saveJobs,
+  subscribeJobDone,
+  subscribeProgress,
+  videoFileUrl,
+  writeJson,
+  type JobDoneCb,
+  type ProgressCb,
+} from './store';
+import { abortWebJob, pumpWebQueue } from './engine';
+import { listLibraryFiles, pickLibraryDir, readLibraryFile, supportsLibraryFolder } from './fsLibrary';
+import { toDisplayTitle } from '@shared/format';
 
-const LS_SETTINGS = 'pv.web.settings.v1';
-const LS_HISTORY = 'pv.web.history.v1';
-const LS_JOBS = 'pv.web.jobs.v1';
-
-function ok<T>(data: T): ApiResult<T> {
-  return { ok: true, data };
-}
-function fail(error: string): { ok: false; error: string } {
-  return { ok: false, error };
-}
-
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-function writeJson(key: string, value: unknown): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* storage full / private mode — non-fatal for web use */
-  }
-}
-
-const WEB_DEFAULT_SETTINGS: AppSettings = {
-  theme: 'dark',
-  accentColor: '#6366f1',
-  background: 'neo-mesh',
-  defaultDestination: 'Browser downloads',
-  defaultOptions: { ...DEFAULT_DOWNLOAD_OPTIONS },
-  maxConcurrentJobs: 1,
-  notificationsEnabled: false,
-  notifyOnEachVideo: false,
-  clipboardMonitoring: false,
-  autoCheckUpdates: false,
-  autoUpdateYtDlp: false,
-  minimizeToTray: false,
-  confirmBeforeQuit: false,
-  keepHistoryDays: 365,
-  recentDestinations: ['Browser downloads'],
-  legalAcknowledged: false,
-  browserCookieSource: 'none',
-  cookiesFile: undefined,
-  proxy: { enabled: false, type: 'http', host: '', port: 8080 },
-  globalSpeedLimitKbps: 0,
-  postDownloadAction: 'none',
-  keyboardShortcutsEnabled: true,
-  showSpeedInNotification: false,
-  firstRunComplete: false,
-};
-
-type ProgressCb = (snap: JobProgressSnapshot) => void;
-type JobDoneCb = (payload: { job: DownloadJob; entry: HistoryEntry }) => void;
-
-const progressSubs = new Set<ProgressCb>();
-const jobDoneSubs = new Set<JobDoneCb>();
-
-function emitProgress(job: DownloadJob): void {
-  const total = job.items.length || 1;
-  const completed = job.items.filter((i) => i.status === 'completed').length;
-  const failed = job.items.filter((i) => i.status === 'failed' || i.status === 'canceled').length;
-  const snap: JobProgressSnapshot = {
-    jobId: job.id,
-    status: job.status,
-    completed,
-    failed,
-    total,
-    overallProgress: total ? completed / total : 0,
-    speedBytesPerSecond: 0,
-    etaSeconds: 0,
-    items: job.items,
-  };
-  progressSubs.forEach((cb) => {
-    try {
-      cb(snap);
-    } catch {
-      /* subscriber error must not break queue */
-    }
-  });
-}
-
-function loadJobs(): DownloadJob[] {
-  return readJson<DownloadJob[]>(LS_JOBS, []);
-}
-function saveJobs(jobs: DownloadJob[]): void {
-  writeJson(LS_JOBS, jobs);
-  // Persist matching history shape for Library page continuity.
-}
-
-function loadHistory(): HistoryEntry[] {
-  return readJson<HistoryEntry[]>(LS_HISTORY, []);
-}
+export { videoFileUrl };
 
 async function postAnalyze(req: AnalyzeRequest): Promise<ApiResult<PlaylistInfo>> {
   const res = await fetch('/api/analyze', {
@@ -141,12 +68,6 @@ async function postAnalyze(req: AnalyzeRequest): Promise<ApiResult<PlaylistInfo>
   if (typeof (json as ApiResult<PlaylistInfo>).ok === 'boolean') return json as ApiResult<PlaylistInfo>;
   const msg = (json as { error?: string }).error ?? `Analyze failed (HTTP ${res.status}).`;
   return fail(msg);
-}
-
-/** Direct per-video download through the server streaming endpoint. */
-function videoFileUrl(videoUrl: string, quality: string, audioOnly: boolean): string {
-  const q = new URLSearchParams({ url: videoUrl, quality, audioOnly: audioOnly ? '1' : '0' });
-  return `/api/video?${q.toString()}`;
 }
 
 async function downloadViaBrowser(url: string, filename: string): Promise<void> {
@@ -245,20 +166,27 @@ export function installWebVault(): void {
         jobs.unshift(job);
         saveJobs(jobs);
         emitProgress(job);
+        // The in-browser engine picks it up from here (no more stuck QUEUED).
+        pumpWebQueue();
         return ok(job);
       },
       list: async () => ok(loadJobs()),
       pauseJob: async (id: string) => {
+        abortWebJob(id);
         const jobs = loadJobs().map((j) => (j.id === id ? { ...j, status: 'paused' as const, updatedAt: new Date().toISOString() } : j));
         saveJobs(jobs);
+        const paused = jobs.find((j) => j.id === id);
+        if (paused) emitProgress(paused);
         return ok(true);
       },
       resumeJob: async (id: string) => {
         const jobs = loadJobs().map((j) => (j.id === id ? { ...j, status: 'queued' as const, updatedAt: new Date().toISOString() } : j));
         saveJobs(jobs);
+        pumpWebQueue();
         return ok(true);
       },
       cancelJob: async (id: string) => {
+        abortWebJob(id);
         saveJobs(loadJobs().filter((j) => j.id !== id));
         return ok(true);
       },
@@ -274,6 +202,7 @@ export function installWebVault(): void {
             : j
         );
         saveJobs(jobs);
+        pumpWebQueue();
         return ok(true);
       },
       retryItem: async (jobId: string, itemId: string) => {
@@ -281,12 +210,14 @@ export function installWebVault(): void {
           j.id === jobId
             ? {
                 ...j,
+                status: j.status === 'failed' ? ('queued' as const) : j.status,
                 items: j.items.map((i) => (i.id === itemId ? { ...i, status: 'queued' as const, progress: 0, error: undefined } : i)),
                 updatedAt: new Date().toISOString(),
               }
             : j
         );
         saveJobs(jobs);
+        pumpWebQueue();
         return ok(true);
       },
       reorder: async (ids: string[]) => {
@@ -299,18 +230,8 @@ export function installWebVault(): void {
         saveJobs(loadJobs().filter((j) => j.status !== 'completed' && j.status !== 'failed' && j.status !== 'canceled'));
         return ok(true);
       },
-      onProgress: (cb: ProgressCb) => {
-        progressSubs.add(cb);
-        return () => {
-          progressSubs.delete(cb);
-        };
-      },
-      onJobDone: (cb: JobDoneCb) => {
-        jobDoneSubs.add(cb);
-        return () => {
-          jobDoneSubs.delete(cb);
-        };
-      },
+      onProgress: (cb: ProgressCb) => subscribeProgress(cb),
+      onJobDone: (cb: JobDoneCb) => subscribeJobDone(cb),
       /** Web-only helper used by the Downloads page for per-file saves. */
       downloadItem: async (jobId: string, itemId: string): Promise<ApiResult<string>> => {
         const job = loadJobs().find((j) => j.id === jobId);
@@ -327,16 +248,16 @@ export function installWebVault(): void {
       list: async () => ok(loadHistory()),
       remove: async (id: string) => {
         const next = loadHistory().filter((h) => h.id !== id);
-        writeJson(LS_HISTORY, next);
+        saveHistory(next);
         return ok(next);
       },
       clear: async () => {
-        writeJson(LS_HISTORY, []);
+        saveHistory([]);
         return ok([]);
       },
       toggleFavorite: async (id: string) => {
         const next = loadHistory().map((h) => (h.id === id ? { ...h, favorite: !h.favorite } : h));
-        writeJson(LS_HISTORY, next);
+        saveHistory(next);
         return ok(next);
       },
       exportCsv: async () => ok(null),
@@ -362,7 +283,15 @@ export function installWebVault(): void {
     },
 
     system: {
-      chooseFolder: async () => ok(null),
+      chooseFolder: async (current?: string) => {
+        // File System Access API: remember a real library folder the app can
+        // save into and browse. Falls back to the previous choice / default.
+        if (supportsLibraryFolder()) {
+          const name = await pickLibraryDir();
+          if (name) return ok(name);
+        }
+        return ok(current ?? null);
+      },
       chooseFile: async () => ok(null),
       openPath: async () => ok(true),
       showItem: async () => ok(true),
@@ -408,7 +337,43 @@ export function installWebVault(): void {
     },
 
     media: {
-      list: async (): Promise<ApiResult<LocalVideo[]>> => ok([]),
+      list: async (): Promise<ApiResult<LocalVideo[]>> => {
+        // Browse where files actually are: the picked library folder first,
+        // then records of plain browser downloads (Firefox/iOS fallback).
+        try {
+          const files = await listLibraryFiles();
+          const fromDir: LocalVideo[] = files.map((f) => {
+            const parts = f.path.split('/');
+            const playlistTitle = parts.length > 1 ? parts[0] : undefined;
+            const title = toDisplayTitle(f.name.replace(/\.[^.]+$/, ''));
+            return {
+              id: `fs:${f.path}`,
+              title,
+              filePath: f.path,
+              fileUrl: '',
+              sizeBytes: f.size,
+              modifiedAt: new Date(f.modified).toISOString(),
+              playlistTitle,
+              container: f.ext,
+            } satisfies LocalVideo;
+          });
+          const names = new Set(files.map((f) => f.name));
+          const fromSaves: LocalVideo[] = loadSaves()
+            .filter((s) => !names.has(s.filename))
+            .map((s) => ({
+              id: `save:${s.filename}`,
+              title: s.title,
+              filePath: `Browser downloads/${s.filename}`,
+              fileUrl: '',
+              sizeBytes: s.bytes,
+              modifiedAt: s.savedAt,
+              container: s.audioOnly ? 'mp3' : 'mp4',
+            }) satisfies LocalVideo);
+          return ok([...fromDir, ...fromSaves]);
+        } catch {
+          return ok([]);
+        }
+      },
       reveal: async () => ok(true),
     },
 
@@ -430,12 +395,35 @@ export function installWebVault(): void {
   };
 
   (window as unknown as { vault?: unknown }).vault = vault;
+
+  // Resume anything left queued (e.g. from a previous session) — and start
+  // processing new jobs from here on.
+  pumpWebQueue();
 }
 
 /** Trigger a browser save for one video via the server streaming endpoint. */
 export async function webDownloadItem(videoUrl: string, title: string, quality: string, audioOnly: boolean): Promise<void> {
-  const safe = `${title.replace(/[\\/:*?"<>|#%{}$!'@+`=]/g, '').trim().slice(0, 120) || 'video'}.${audioOnly ? 'mp3' : 'mp4'}`;
+  const safe = safeFilename(title, audioOnly);
   await downloadViaBrowser(videoFileUrl(videoUrl, quality, audioOnly), safe);
+  recordSave({
+    filename: safe,
+    title,
+    bytes: 0,
+    savedAt: new Date().toISOString(),
+    quality,
+    audioOnly,
+    libraryPath: null,
+  });
 }
 
-export { videoFileUrl };
+/**
+ * Resolve a playable URL for a web library entry. Library-folder files are
+ * read back into a blob URL (caller should revoke it when done); entries that
+ * already carry a fileUrl (desktop) pass through.
+ */
+export async function openWebMedia(entry: LocalVideo): Promise<string | null> {
+  if (entry.fileUrl) return entry.fileUrl;
+  if (!entry.id.startsWith('fs:')) return null;
+  const blob = await readLibraryFile(entry.filePath);
+  return blob ? URL.createObjectURL(blob) : null;
+}

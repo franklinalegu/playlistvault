@@ -11,7 +11,7 @@ import {
   FiTrash2
 } from 'react-icons/fi';
 import type { HistoryEntry } from '@shared/types';
-import { formatBytes, formatLongDuration } from '@shared/format';
+import { formatBytes, formatLongDuration, toDisplayTitle } from '@shared/format';
 import { useToast } from '@/contexts/ToastContext';
 import { EmptyState, PageShell } from '@/components/ui';
 
@@ -149,7 +149,7 @@ export function History(): JSX.Element {
               </div>
 
               <div className="min-w-0 flex-1">
-                <h3 className="truncate text-sm font-semibold text-white">{entry.playlistTitle}</h3>
+                <h3 className="truncate text-sm font-semibold text-white">{toDisplayTitle(entry.playlistTitle)}</h3>
                 <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
                   <span>{new Date(entry.finishedAt).toLocaleString()}</span>
                   <span className="tabular-nums">{entry.videosCompleted} videos</span>
