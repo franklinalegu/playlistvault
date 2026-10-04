@@ -18,9 +18,12 @@ A modern desktop app for downloading YouTube playlists for offline viewing — b
 | **Queue** | Multiple playlists, drag-to-reorder, per-job pause / resume / cancel / retry, and per-video retry. Bounded parallelism at both the job and video level. |
 | **Progress** | Live percentage, transfer speed and ETA per video and per job, throttled so huge playlists don't flood the UI. |
 | **Organisation** | Zero-padded numbering that sorts correctly in Explorer, sanitised filenames, optional per-playlist folders, and duplicate skipping so re-running a playlist only fetches what's missing. |
-| **Resource links** *(v2)* | Each playlist gets `_Resource Links.html` — an offline, clickable index of every video's source URL, channel, thumbnail, chapters and description links, tiled row-by-row against the exact file saved to disk. Searchable, with a copy-all-URLs button. A JSON companion is written for scripting. |
+| **Channel archives** *(v6.2)* | Paste a channel and get everything worth keeping: uploads, podcast sessions, courses and the channel's playlists (capped at 10 shelves), each saved into its own subfolder (`Channel/Playlist/01 - Title.mp4`). Repeats across shelves are detected and downloaded once — the panel tells you how many were skipped. |
+| **Resource links** *(v2, per-video v6.2)* | Each playlist gets `_Resource Links.html` — an offline, clickable index of every video's source URL, channel, thumbnail, chapters and description links, tiled row-by-row against the exact file saved to disk. Searchable, with a copy-all-URLs button. A JSON companion is written for scripting. Every video also gets its own `<video>.links.html` sidecar page beside the file. |
+| **About command center** *(v6.3)* | The About page shows live update status, inline release notes for new versions, engine health (yt-dlp/FFmpeg with fix actions), and one-click diagnostics copy for bug reports. |
+| **Downloads everywhere** *(v6.2)* | The same queue runs on desktop (yt-dlp), web/PWA (in-browser engine with channel-subfolder parity), Android (native DownloadManager saves) and the browser extension (direct files in-browser, watch pages hand off to desktop). |
 | **Destination control** *(v2)* | Pick any folder per download, with your six most recent folders offered as one-click shortcuts. |
-| **History** | Searchable record with favourites, one-click "open folder", and CSV export. Optional automatic pruning. |
+| **History** | Searchable record with favourites, one-click "open folder", and CSV export. Optional automatic pruning. The Player library groups saved videos by playlist for in-app browsing. |
 | **Settings** | Theme (dark / light / follow Windows), six accent colours, default folder and format, concurrency, notifications, clipboard monitoring, update preferences. |
 | **Nice-to-haves** | Native Windows notifications, clipboard monitoring, drag-and-drop a link onto the window, `Ctrl+Enter` to start, embedded thumbnails/metadata, subtitle download. |
 
@@ -93,7 +96,7 @@ Import the repo — `vercel.json` already sets build `npm run build:web`, output
 | `GET /api/video?url=&quality=&audioOnly=` | Streams one video to the browser for saving (File System Access API or anchor download). |
 | `/download`, `/download/windows/portable`, `/download/mac[/intel\|/apple-silicon][/zip]`, `/download/android` | Newest native installers, resolved from the latest GitHub Release (see `api/download.js`). |
 
-The About page lists **every desktop build for download on request**, with the matching installer highlighted for the visitor's OS. `/download` alone auto-detects the platform from the user agent.
+On the **web app**, the About page lists **every desktop build for download on request**, with the matching installer highlighted for the visitor's OS (the installed desktop app hides this section — it already lives on your machine). `/download` alone auto-detects the platform from the user agent.
 
 ### Full playlists on the web (self-hosting)
 
@@ -114,7 +117,7 @@ The Android APK (Capacitor) has no local `/api/*` server, so set `VITE_API_BASE`
 | `npm run build` | Typecheck, then build renderer, main and preload |
 | `npm run build:web` | Typecheck, then build the web app to `dist/` (Vercel uses this) |
 | `npm run typecheck` | `tsc --noEmit` across both app and Node configs |
-| `npm test` | Run the Vitest suite (45 tests) |
+| `npm test` | Run the Vitest suite (145 tests) |
 | `npm run test:watch` | Vitest in watch mode |
 | `npm run lint` | ESLint over `.ts` / `.tsx` |
 | `npm run fetch:binaries` | Download yt-dlp + FFmpeg (add `--no-ffmpeg` for yt-dlp only) |
@@ -175,7 +178,7 @@ The threat model here is that video titles, playlist names and URLs are all atta
 
 ### Testing
 
-74 unit tests cover the security-critical and parsing-critical code — filename sanitising, path traversal, destination guards, URL parsing, yt-dlp argv construction, progress-line parsing, formatters, description-link extraction, manifest HTML escaping (including `javascript:`/`data:` URL rejection), and settings migration from v1.
+145 unit tests cover the security-critical and parsing-critical code — filename sanitising, path traversal, destination guards, URL parsing, yt-dlp argv construction, progress-line parsing, formatters, description-link extraction, manifest HTML escaping (including `javascript:`/`data:` URL rejection), channel shelf merging with repeat removal, per-video manifest pages, web API helpers, and settings migration from v1.
 
 ```bash
 npm test
