@@ -18,7 +18,8 @@ public class MainActivity extends BridgeActivity {
         // through the system DownloadManager so they actually land in
         // Downloads/PlaylistVault with a notification. Blob:/data: URLs have
         // no fetchable bytes for DownloadManager and are left to the WebView.
-        bridge.getWebView().setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
+        if (getBridge() == null || getBridge().getWebView() == null) return;
+        getBridge().getWebView().setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
             if (url == null || (!url.startsWith("http://") && !url.startsWith("https://"))) return;
             try {
                 DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
