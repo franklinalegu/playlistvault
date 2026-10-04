@@ -30,6 +30,18 @@ export function PlaylistPanel({
 
   const unavailable = playlist.videos.filter((v) => !v.isAvailable).length;
 
+  const isChannel = (playlist as { kind?: string }).kind === 'channel';
+  const groups = useMemo(() => {
+    if (!isChannel) return null;
+    const map = new Map<string, typeof playlist.videos>();
+    for (const v of visible) {
+      const key = v.playlistTitle?.trim() || v.uploader?.trim() || 'Uploads';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(v);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [isChannel, visible]);
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 14 }}
@@ -73,6 +85,11 @@ export function PlaylistPanel({
           <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-400">
             <FiUser className="h-3.5 w-3.5" />
             {playlist.creator}
+            {isChannel && (
+              <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-cyan-300">
+                channel archive · saves into playlist subfolders
+              </span>
+            )}
           </p>
 
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -124,49 +141,100 @@ export function PlaylistPanel({
         </button>
       </div>
 
-      <ul className="max-h-[320px] overflow-y-auto border-t border-white/[0.07]">
-        {visible.map((video) => {
-          const isSelected = selected.has(video.id);
-          return (
-            <li key={video.id}>
-              <button
-                type="button"
-                disabled={!video.isAvailable}
-                onClick={() => onToggle(video.id)}
-                className={`flex w-full items-center gap-3 border-b border-white/[0.04] px-5 py-2.5 text-left transition-colors last:border-0 ${
-                  video.isAvailable ? 'hover:bg-white/[0.04]' : 'cursor-not-allowed opacity-40'
-                }`}
-              >
-                {isSelected ? (
-                  <FiCheckSquare className="h-4 w-4 shrink-0 text-accent-300" />
-                ) : (
-                  <FiSquare className="h-4 w-4 shrink-0 text-slate-600" />
-                )}
-                <span className="w-7 shrink-0 text-right text-[11px] tabular-nums text-slate-600">
-                  {video.index}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm text-slate-300">
-                  {toDisplayTitle(video.title)}
-                </span>
-                {video.unavailableReason ? (
-                  <span className="shrink-0 text-[11px] text-amber-400/80">
-                    {video.unavailableReason}
-                  </span>
-                ) : (
-                  <span className="shrink-0 text-[11px] tabular-nums text-slate-500">
-                    {formatDuration(video.durationSeconds)}
-                  </span>
-                )}
-              </button>
-            </li>
-          );
-        })}
-        {visible.length === 0 && (
-          <li className="px-5 py-8 text-center text-sm text-slate-500">
-            No videos match “{filter}”.
-          </li>
+      <div className="max-h-[320px] overflow-y-auto border-t border-white/[0.07]">
+        {groups ? (
+          groups.map(([name, items]) => (
+            <div key={name}>
+              <div className="sticky top-0 flex items-center justify-between bg-vault-900/95 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 backdrop-blur">
+                <span className="truncate">{toDisplayTitle(name)}</span>
+                <span className="tabular-nums">{items.length}</span>
+              </div>
+              <ul>
+                {items.map((video) => {
+                  const isSelected = selected.has(video.id);
+                  return (
+                    <li key={video.id}>
+                      <button
+                        type="button"
+                        disabled={!video.isAvailable}
+                        onClick={() => onToggle(video.id)}
+                        className={`flex w-full items-center gap-3 border-b border-white/[0.04] px-5 py-2.5 text-left transition-colors last:border-0 ${
+                          video.isAvailable ? 'hover:bg-white/[0.04]' : 'cursor-not-allowed opacity-40'
+                        }`}
+                      >
+                        {isSelected ? (
+                          <FiCheckSquare className="h-4 w-4 shrink-0 text-accent-300" />
+                        ) : (
+                          <FiSquare className="h-4 w-4 shrink-0 text-slate-600" />
+                        )}
+                        <span className="w-7 shrink-0 text-right text-[11px] tabular-nums text-slate-600">
+                          {video.index}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-slate-300">
+                          {toDisplayTitle(video.title)}
+                        </span>
+                        {video.unavailableReason ? (
+                          <span className="shrink-0 text-[11px] text-amber-400/80">
+                            {video.unavailableReason}
+                          </span>
+                        ) : (
+                          <span className="shrink-0 text-[11px] tabular-nums text-slate-500">
+                            {formatDuration(video.durationSeconds)}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))
+        ) : (
+          <ul>
+            {visible.map((video) => {
+              const isSelected = selected.has(video.id);
+              return (
+                <li key={video.id}>
+                  <button
+                    type="button"
+                    disabled={!video.isAvailable}
+                    onClick={() => onToggle(video.id)}
+                    className={`flex w-full items-center gap-3 border-b border-white/[0.04] px-5 py-2.5 text-left transition-colors last:border-0 ${
+                      video.isAvailable ? 'hover:bg-white/[0.04]' : 'cursor-not-allowed opacity-40'
+                    }`}
+                  >
+                    {isSelected ? (
+                      <FiCheckSquare className="h-4 w-4 shrink-0 text-accent-300" />
+                    ) : (
+                      <FiSquare className="h-4 w-4 shrink-0 text-slate-600" />
+                    )}
+                    <span className="w-7 shrink-0 text-right text-[11px] tabular-nums text-slate-600">
+                      {video.index}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-slate-300">
+                      {toDisplayTitle(video.title)}
+                    </span>
+                    {video.unavailableReason ? (
+                      <span className="shrink-0 text-[11px] text-amber-400/80">
+                        {video.unavailableReason}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-[11px] tabular-nums text-slate-500">
+                        {formatDuration(video.durationSeconds)}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         )}
-      </ul>
+        {visible.length === 0 && (
+          <p className="px-5 py-8 text-center text-sm text-slate-500">
+            No videos match “{filter}”.
+          </p>
+        )}
+      </div>
     </motion.section>
   );
 }

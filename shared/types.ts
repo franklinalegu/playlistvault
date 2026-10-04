@@ -40,6 +40,8 @@ export interface PlaylistVideo {
   durationSeconds: number;
   thumbnail?: string;
   uploader?: string;
+  /** Owning playlist name when known (channel uploads enumerate many playlists). */
+  playlistTitle?: string;
   url: string;
   /** 1-based position within the playlist as reported by the source. */
   index: number;
@@ -59,6 +61,8 @@ export interface PlaylistInfo {
   creator: string;
   /** Which platform this playlist was resolved from. */
   platform: SourcePlatform;
+  /** How the source URL was classified: playlist, single video, or channel archive. */
+  kind?: 'playlist' | 'video' | 'channel';
   channelUrl?: string;
   thumbnail?: string;
   description?: string;

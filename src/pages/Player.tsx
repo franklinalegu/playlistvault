@@ -30,6 +30,16 @@ export function Player(): JSX.Element {
     return videos.filter(v => v.title.toLowerCase().includes(q) || v.playlistTitle?.toLowerCase().includes(q) || v.filePath.toLowerCase().includes(q));
   }, [videos, query]);
 
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof filtered>();
+    for (const v of filtered) {
+      const key = v.playlistTitle?.trim() || 'Unsorted downloads';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(v);
+    }
+    return [...map.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  }, [filtered]);
+
   const activeIdx = filtered.findIndex(v => v.id === activeId);
   const active = activeIdx >= 0 ? filtered[activeIdx] : null;
 
@@ -129,30 +139,38 @@ export function Player(): JSX.Element {
           action={<button onClick={() => void load()} className="btn-primary">Re-scan</button>}
         />
       ) : (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(v => (
-            <button
-              key={v.id}
-              onClick={() => setActiveId(v.id)}
-              className={`group flex flex-col overflow-hidden rounded-2xl border text-left transition ${activeId === v.id ? 'border-violet-400/50 bg-violet-500/10 shadow-glow' : 'border-white/[0.07] bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.06]'}`}
-            >
-              <div className="relative aspect-video overflow-hidden bg-black">
-                {/* Use thumbnail if available later; fallback to play overlay */}
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-violet-500/20 via-transparent to-cyan-400/15">
-                  <span className={`flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition ${activeId === v.id ? 'bg-white text-slate-900' : 'bg-white/90 text-slate-900 group-hover:bg-white'}`}>
-                    <FiPlay className="ml-0.5 h-5 w-5" />
-                  </span>
-                </div>
-                <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white">{v.container.toUpperCase()}</span>
+        <div className="space-y-6">
+          {grouped.map(([playlist, items]) => (
+            <section key={playlist}>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="truncate text-sm font-semibold text-white">{toDisplayTitle(playlist)}</h3>
+                <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] tabular-nums text-slate-400">{items.length} videos</span>
               </div>
-              <div className="p-3">
-                <p className="line-clamp-2 text-sm font-semibold leading-tight text-white">{toDisplayTitle(v.title)}</p>
-                <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] text-slate-400">
-                  {v.playlistTitle && <><span className="truncate">{toDisplayTitle(v.playlistTitle)}</span><span>·</span></>}
-                  <span className="inline-flex items-center gap-1"><FiClock className="h-3 w-3" />{formatBytes(v.sizeBytes)}</span>
-                </p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {items.map(v => (
+                  <button
+                    key={v.id}
+                    onClick={() => setActiveId(v.id)}
+                    className={`group flex flex-col overflow-hidden rounded-2xl border text-left transition ${activeId === v.id ? 'border-violet-400/50 bg-violet-500/10 shadow-glow' : 'border-white/[0.07] bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.06]'}`}
+                  >
+                    <div className="relative aspect-video overflow-hidden bg-black">
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-violet-500/20 via-transparent to-cyan-400/15">
+                        <span className={`flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition ${activeId === v.id ? 'bg-white text-slate-900' : 'bg-white/90 text-slate-900 group-hover:bg-white'}`}>
+                          <FiPlay className="ml-0.5 h-5 w-5" />
+                        </span>
+                      </div>
+                      <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white">{v.container.toUpperCase()}</span>
+                    </div>
+                    <div className="p-3">
+                      <p className="line-clamp-2 text-sm font-semibold leading-tight text-white">{toDisplayTitle(v.title)}</p>
+                      <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] text-slate-400">
+                        <span className="inline-flex items-center gap-1"><FiClock className="h-3 w-3" />{formatBytes(v.sizeBytes)}</span>
+                      </p>
+                    </div>
+                  </button>
+                ))}
               </div>
-            </button>
+            </section>
           ))}
         </div>
       )}

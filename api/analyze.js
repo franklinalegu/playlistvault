@@ -110,12 +110,14 @@ function mapToPlaylist(data, parsed, quality, sourceUrl) {
     const title = entry.title?.trim() || 'Untitled video';
     const unavailable = !entry.title || entry.title === '[Deleted video]' || entry.title === '[Private video]'
       || ['private', 'needs_auth', 'subscriber_only', 'premium_only'].includes((entry.availability ?? '').toLowerCase());
+    const playlistTitle = entry.playlist_title?.trim?.() || entry.playlist?.trim?.() || undefined;
     return {
       id: entry.id ?? `unknown-${i}`,
       title,
       durationSeconds: Math.max(0, Math.round(entry.duration ?? 0)),
       thumbnail: pickThumb(entry),
       uploader: entry.uploader ?? entry.channel ?? data.uploader ?? data.channel,
+      ...(playlistTitle ? { playlistTitle } : {}),
       url: entry.webpage_url || (entry.url?.startsWith('http') ? entry.url : `https://www.youtube.com/watch?v=${entry.id ?? ''}`),
       index: i + 1,
       isAvailable: !unavailable,
@@ -128,6 +130,7 @@ function mapToPlaylist(data, parsed, quality, sourceUrl) {
     title: data.title?.trim() || 'Untitled playlist',
     creator: data.uploader ?? data.channel ?? 'Unknown creator',
     platform: parsed.platform ?? 'youtube',
+    kind: Array.isArray(data.entries) ? 'playlist' : 'video',
     channelUrl: data.channel_url ?? data.uploader_url,
     thumbnail: pickThumb(data) ?? videos.find((v) => v.thumbnail)?.thumbnail,
     description: data.description?.slice(0, 800),

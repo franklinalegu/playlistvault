@@ -68,19 +68,19 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }): JSX.Element {
   return (
     <>
       {/* Brand — v6 */}
-      <div className="mb-6 flex items-center gap-3 px-1.5 pt-1">
-        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 via-accent-500 to-cyan-400 shadow-v6-glow">
+      <div className="mb-5 flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5 shadow-glass-sm backdrop-blur-xl">
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 via-accent-500 to-cyan-400 shadow-v6-glow ring-1 ring-white/25">
           <VaultMark />
-          <span className="absolute -right-1 -top-1 flex h-5 items-center rounded-full border-2 border-vault-950 bg-gradient-to-r from-accent-500 to-cyan-400 px-1.5 text-[9px] font-black tracking-wider text-white">
+          <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-vault-900 bg-vault-950 px-1 text-[9px] font-black leading-none text-cyan-200 shadow">
             6
           </span>
         </div>
-        <div className="min-w-0 leading-tight">
-          <p className="flex items-center gap-1.5 text-[14.5px] font-bold tracking-tight text-white">
-            PlaylistVault
-            <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-widest text-accent-200">V6</span>
+        <div className="min-w-0 leading-none">
+          <p className="flex items-center gap-1.5 font-display text-[15px] font-bold tracking-tight text-white">
+            <span className="truncate">PlaylistVault</span>
+            <span className="shrink-0 rounded-md border border-violet-400/25 bg-gradient-to-r from-violet-500/25 to-cyan-400/20 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.14em] text-violet-100">V6</span>
           </p>
-          <p className="text-[11px] font-medium tracking-wide text-slate-400">Neo · offline-first</p>
+          <p className="mt-1 truncate text-[11px] font-medium tracking-wide text-slate-400">Neo · offline-first</p>
         </div>
       </div>
 

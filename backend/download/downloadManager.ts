@@ -19,7 +19,7 @@ import { parseProgressLine } from './progress.js';
 import { padIndex, sanitizeFilename, isSafeDestination } from '../util/sanitize.js';
 import { parseSourceUrl } from '../util/platform.js';
 import { findInfoJson, readVideoLinks, cleanupInfoJson, type VideoLinks } from '../manifest/linkExtractor.js';
-import { writeManifest } from '../manifest/manifestWriter.js';
+import { writeManifest, writePerVideoManifest } from '../manifest/manifestWriter.js';
 import { JsonStore } from '../storage/jsonStore.js';
 import { log } from '../util/logger.js';
 import { resolveBinaries, checkBinaries } from '../ffmpeg/binaries.js';
@@ -504,7 +504,7 @@ export class DownloadManager extends EventEmitter {
       );
     }
 
-    const { htmlPath } = await writeManifest(job.destination, {
+    const meta = {
       playlistTitle: job.playlistTitle,
       creator: videos.find((v) => v.channelName)?.channelName ?? 'Unknown creator',
       sourceUrl: job.sourceUrl,
@@ -513,9 +513,29 @@ export class DownloadManager extends EventEmitter {
       quality: job.options.quality,
       container: job.options.audioOnly ? job.options.audioFormat : job.options.container,
       audioOnly: job.options.audioOnly
-    }, videos);
+    };
+    const { htmlPath } = await writeManifest(job.destination, meta, videos);
 
     job.manifestPath = htmlPath;
+
+    // Per-video pages sit beside each file so a single video can be shared
+    // with its source/chapter/description links intact.
+    const byItem = new Map(included.map((item, i) => [item.id, videos[i] as VideoLinks]));
+    await Promise.all(
+      included.map(async (item) => {
+        const links = byItem.get(item.id);
+        if (!links || !item.outputPath) return;
+        try {
+          await writePerVideoManifest(path.dirname(item.outputPath), links, {
+            playlistTitle: job.playlistTitle,
+            sourceUrl: job.sourceUrl,
+            generatedAt: meta.generatedAt
+          });
+        } catch {
+          /* per-video page is a bonus; the job manifest already succeeded */
+        }
+      })
+    );
 
     // The sidecars have served their purpose; leave the folder tidy.
     await cleanupInfoJson(infoPaths);
@@ -687,8 +707,28 @@ export class DownloadManager extends EventEmitter {
     const prefix = job.options.numberFiles
       ? `${padIndex(item.index, job.items.length)} - `
       : '';
+    // Channel archives enumerate many playlists: keep each playlist (or
+    // uploader when no playlist name is known) in its own subfolder so a
+    // 500-video channel stays browsable in Explorer and in-app.
+    const subfolder = this.channelSubfolder(job, video);
     // %(ext)s is a yt-dlp placeholder, not user input.
+    if (subfolder) {
+      return path.join(job.destination, subfolder, `${prefix}${safeTitle}.%(ext)s`);
+    }
     return path.join(job.destination, `${prefix}${safeTitle}.%(ext)s`);
+  }
+
+  /** Subfolder for channel-archive items; null keeps the current flat layout. */
+  private channelSubfolder(job: DownloadJob, video?: PlaylistVideo): string | null {
+    if (parseSourceUrl(job.sourceUrl).kind !== 'channel') return null;
+    const raw = video?.playlistTitle?.trim() || video?.uploader?.trim();
+    if (!raw) return null;
+    const folder = sanitizeFilename(raw, 80);
+    // Avoid nesting when the subfolder equals the job folder itself.
+    if (!folder || folder.toLowerCase() === sanitizeFilename(job.playlistTitle, 80).toLowerCase()) {
+      return null;
+    }
+    return folder;
   }
 
   private resolveJobFolder(
@@ -707,12 +747,31 @@ export class DownloadManager extends EventEmitter {
       ? `${padIndex(item.index, job.items.length)} - `
       : '';
     const base = `${prefix}${safeTitle}`;
+    const isMatch = (f: string): boolean =>
+      f.startsWith(base) && !f.endsWith('.part') && !f.endsWith('.ytdl');
     try {
       const files = await fsp.readdir(job.destination);
-      const match = files.find(
-        (f) => f.startsWith(base) && !f.endsWith('.part') && !f.endsWith('.ytdl')
-      );
-      return match ? path.join(job.destination, match) : undefined;
+      const direct = files.find(isMatch);
+      if (direct) return path.join(job.destination, direct);
+      // Channel archives live one level deeper (playlist subfolders).
+      for (const entry of files) {
+        const full = path.join(job.destination, entry);
+        let stat: import('node:fs').Stats | null = null;
+        try {
+          stat = await fsp.stat(full);
+        } catch {
+          continue;
+        }
+        if (!stat.isDirectory()) continue;
+        try {
+          const nested = await fsp.readdir(full);
+          const match = nested.find(isMatch);
+          if (match) return path.join(full, match);
+        } catch {
+          continue;
+        }
+      }
+      return undefined;
     } catch {
       return undefined;
     }

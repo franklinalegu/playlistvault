@@ -12,6 +12,8 @@ interface RawEntry {
   thumbnail?: string;
   uploader?: string;
   channel?: string;
+  playlist_title?: string;
+  playlist?: string;
   url?: string;
   webpage_url?: string;
   availability?: string | null;
@@ -112,19 +114,21 @@ export function analyzePlaylist(
   return { promise, cancel: kill };
 }
 
-function buildYouTubePlaylist(data: RawPlaylist, parsed: { playlistId?: string; videoId?: string; normalized?: string }, quality: VideoQuality): PlaylistInfo {
+function buildYouTubePlaylist(data: RawPlaylist, parsed: { playlistId?: string; videoId?: string; normalized?: string; kind?: string }, quality: VideoQuality): PlaylistInfo {
   const rawEntries: RawEntry[] = Array.isArray(data.entries)
     ? data.entries.filter(Boolean)
     : [data];
 
   const videos: PlaylistVideo[] = rawEntries.map((entry, i) => {
     const state = availability(entry);
+    const playlistTitle = entry.playlist_title?.trim() || entry.playlist?.trim() || undefined;
     return {
       id: entry.id ?? `unknown-${i}`,
       title: entry.title?.trim() || 'Untitled video',
       durationSeconds: Math.max(0, Math.round(entry.duration ?? 0)),
       thumbnail: pickThumbnail(entry),
       uploader: entry.uploader ?? entry.channel ?? data.uploader ?? data.channel,
+      ...(playlistTitle ? { playlistTitle } : {}),
       url: entryUrl(entry),
       index: i + 1,
       isAvailable: state.isAvailable,
@@ -139,6 +143,7 @@ function buildYouTubePlaylist(data: RawPlaylist, parsed: { playlistId?: string; 
     title: data.title?.trim() || 'Untitled playlist',
     creator: data.uploader ?? data.channel ?? 'Unknown creator',
     platform: 'youtube',
+    kind: parsed.kind === 'channel' ? 'channel' : Array.isArray(data.entries) ? 'playlist' : 'video',
     channelUrl: data.channel_url ?? data.uploader_url,
     thumbnail: pickThumbnail(data) ?? videos.find((v) => v.thumbnail)?.thumbnail,
     description: data.description?.slice(0, 800),
