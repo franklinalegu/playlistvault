@@ -186,7 +186,14 @@ export class DownloadManager extends EventEmitter {
     }
 
     const selected = new Set(selectedVideoIds);
-    const videos = playlist.videos.filter((v) => selected.has(v.id) && v.isAvailable);
+    // Belt-and-braces: the same video id can arrive twice (channel shelf
+    // overlap). Download it once — first occurrence wins.
+    const seen = new Set<string>();
+    const videos = playlist.videos.filter((v) => {
+      if (!selected.has(v.id) || !v.isAvailable || seen.has(v.id)) return false;
+      seen.add(v.id);
+      return true;
+    });
     if (!videos.length) {
       throw new Error('No downloadable videos were selected.');
     }

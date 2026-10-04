@@ -106,7 +106,16 @@ function pickThumb(entry) {
 
 function mapToPlaylist(data, parsed, quality, sourceUrl) {
   const rawEntries = Array.isArray(data.entries) ? data.entries.filter(Boolean) : [data];
-  const videos = rawEntries.map((entry, i) => {
+  // Same video can appear twice in a flat dump — keep the first, drop repeats.
+  const seenIds = new Set();
+  const uniqueEntries = rawEntries.filter((entry, i) => {
+    const id = entry.id ?? `unknown-${i}`;
+    if (seenIds.has(id)) return false;
+    seenIds.add(id);
+    return true;
+  });
+  const duplicateCount = rawEntries.length - uniqueEntries.length;
+  const videos = uniqueEntries.map((entry, i) => {
     const title = entry.title?.trim() || 'Untitled video';
     const unavailable = !entry.title || entry.title === '[Deleted video]' || entry.title === '[Private video]'
       || ['private', 'needs_auth', 'subscriber_only', 'premium_only'].includes((entry.availability ?? '').toLowerCase());
@@ -131,6 +140,7 @@ function mapToPlaylist(data, parsed, quality, sourceUrl) {
     creator: data.uploader ?? data.channel ?? 'Unknown creator',
     platform: parsed.platform ?? 'youtube',
     kind: Array.isArray(data.entries) ? 'playlist' : 'video',
+    ...(duplicateCount ? { duplicateCount } : {}),
     channelUrl: data.channel_url ?? data.uploader_url,
     thumbnail: pickThumb(data) ?? videos.find((v) => v.thumbnail)?.thumbnail,
     description: data.description?.slice(0, 800),

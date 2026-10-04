@@ -57,6 +57,16 @@ import { toDisplayTitle } from '@shared/format';
 
 export { videoFileUrl };
 
+/** Drop repeated video ids (channel shelf overlap) — first occurrence wins. */
+function dedupeVideos<T extends { id: string }>(videos: T[]): T[] {
+  const seen = new Set<string>();
+  return videos.filter((v) => {
+    if (seen.has(v.id)) return false;
+    seen.add(v.id);
+    return true;
+  });
+}
+
 async function postAnalyze(req: AnalyzeRequest): Promise<ApiResult<PlaylistInfo>> {
   const res = await fetch(analyzeUrl(), {
     method: 'POST',
@@ -143,8 +153,7 @@ export function installWebVault(): void {
           destination: req.destination || 'Browser downloads',
           options: req.options,
           status: 'queued',
-          items: req.playlist.videos
-            .filter((v) => req.selectedVideoIds.includes(v.id))
+          items: dedupeVideos(req.playlist.videos.filter((v) => req.selectedVideoIds.includes(v.id)))
             .map((v, i) => {
               // Mirror the desktop channel archive: channel uploads land in
               // per-playlist (or uploader) subfolders instead of one flat pile.

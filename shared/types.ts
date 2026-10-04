@@ -42,6 +42,8 @@ export interface PlaylistVideo {
   uploader?: string;
   /** Owning playlist name when known (channel uploads enumerate many playlists). */
   playlistTitle?: string;
+  /** Which channel shelf this video came from (uploads, course, podcast, playlist). */
+  section?: 'uploads' | 'course' | 'podcast' | 'playlist';
   url: string;
   /** 1-based position within the playlist as reported by the source. */
   index: number;
@@ -67,6 +69,8 @@ export interface PlaylistInfo {
   thumbnail?: string;
   description?: string;
   videoCount: number;
+  /** Repeats removed when merging channel shelves (same video in uploads + course, …). */
+  duplicateCount?: number;
   totalDurationSeconds: number;
   /** Rough byte estimate for the currently selected quality. */
   estimatedBytes: number;

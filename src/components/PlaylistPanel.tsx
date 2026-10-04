@@ -33,11 +33,13 @@ export function PlaylistPanel({
   const isChannel = (playlist as { kind?: string }).kind === 'channel';
   const groups = useMemo(() => {
     if (!isChannel) return null;
-    const map = new Map<string, typeof playlist.videos>();
+    const map = new Map<string, { videos: typeof playlist.videos; section?: string }>();
     for (const v of visible) {
       const key = v.playlistTitle?.trim() || v.uploader?.trim() || 'Uploads';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(v);
+      if (!map.has(key)) map.set(key, { videos: [], section: v.section });
+      const g = map.get(key)!;
+      g.videos.push(v);
+      if (!g.section && v.section) g.section = v.section;
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [isChannel, visible]);
@@ -122,6 +124,16 @@ export function PlaylistPanel({
         </div>
       )}
 
+      {(playlist.duplicateCount ?? 0) > 0 && (
+        <div className="mx-5 mb-4 flex items-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3.5 py-2.5">
+          <FiCheckSquare className="h-4 w-4 shrink-0 text-cyan-400" />
+          <p className="text-xs text-cyan-200/90">
+            {playlist.duplicateCount} repeated video{playlist.duplicateCount! > 1 ? 's' : ''} found across
+            uploads, courses and podcasts — kept once, so nothing downloads twice.
+          </p>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 border-t border-white/[0.07] px-5 py-3">
         <div className="relative flex-1">
           <FiSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
@@ -143,11 +155,26 @@ export function PlaylistPanel({
 
       <div className="max-h-[320px] overflow-y-auto border-t border-white/[0.07]">
         {groups ? (
-          groups.map(([name, items]) => (
+          groups.map(([name, group]) => {
+            const items = group.videos;
+            const sectionLabel =
+              group.section === 'course' ? 'Course'
+              : group.section === 'podcast' ? 'Podcast'
+              : group.section === 'playlist' ? 'Playlist'
+              : group.section === 'uploads' ? 'Uploads'
+              : null;
+            return (
             <div key={name}>
-              <div className="sticky top-0 flex items-center justify-between bg-vault-900/95 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 backdrop-blur">
+              <div className="sticky top-0 flex items-center justify-between gap-2 bg-vault-900/95 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 backdrop-blur">
                 <span className="truncate">{toDisplayTitle(name)}</span>
-                <span className="tabular-nums">{items.length}</span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {sectionLabel && (
+                    <span className="rounded-full bg-white/[0.07] px-1.5 py-px text-[9px] font-bold normal-case tracking-wide text-slate-300">
+                      {sectionLabel}
+                    </span>
+                  )}
+                  <span className="tabular-nums">{items.length}</span>
+                </span>
               </div>
               <ul>
                 {items.map((video) => {
@@ -188,7 +215,8 @@ export function PlaylistPanel({
                 })}
               </ul>
             </div>
-          ))
+            );
+          })
         ) : (
           <ul>
             {visible.map((video) => {
