@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,6 +6,19 @@ import { DownloadManager } from '../backend/download/downloadManager';
 import { SettingsService } from '../backend/settings/settingsService';
 import { isSafeDestination } from '../backend/util/sanitize';
 import { DEFAULT_DOWNLOAD_OPTIONS } from '../shared/types';
+
+// This test targets destination validation, not the yt-dlp preflight —
+// stub the binary check so the test is hermetic on machines/CI without yt-dlp.
+vi.mock('../backend/ffmpeg/binaries.js', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('../backend/ffmpeg/binaries.js')>();
+  return {
+    ...mod,
+    checkBinaries: async () => [
+      { name: 'yt-dlp', found: true, path: 'yt-dlp-stub', version: 'stub' },
+      { name: 'ffmpeg', found: true, path: 'ffmpeg-stub', version: 'stub' }
+    ]
+  };
+});
 
 const playlist = {
   id: 'p', title: 'My Playlist', creator: 'c', videoCount: 1,
