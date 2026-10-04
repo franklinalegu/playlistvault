@@ -32,7 +32,7 @@ import type {
   YtDlpUpdateStatus,
 } from '@shared/types';
 import {
-  LS_SETTINGS,  WEB_DEFAULT_SETTINGS,
+  LS_SETTINGS,  WEB_DEFAULT_SETTINGS, analyzeUrl,
   emitProgress,
   fail,
   loadHistory,
@@ -58,7 +58,7 @@ import { toDisplayTitle } from '@shared/format';
 export { videoFileUrl };
 
 async function postAnalyze(req: AnalyzeRequest): Promise<ApiResult<PlaylistInfo>> {
-  const res = await fetch('/api/analyze', {
+  const res = await fetch(analyzeUrl(), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ url: req.url, quality: req.quality ?? '1080p' }),
@@ -145,20 +145,30 @@ export function installWebVault(): void {
           status: 'queued',
           items: req.playlist.videos
             .filter((v) => req.selectedVideoIds.includes(v.id))
-            .map((v, i) => ({
-              id: `${id}-item-${i}`,
-              videoId: v.id,
-              title: v.title,
-              index: v.index,
-              status: 'queued' as const,
-              progress: 0,
-              speedBytesPerSecond: 0,
-              etaSeconds: 0,
-              downloadedBytes: 0,
-              totalBytes: 0,
-              attempts: 0,
-              sourceUrl: v.url,
-            })),
+            .map((v, i) => {
+              // Mirror the desktop channel archive: channel uploads land in
+              // per-playlist (or uploader) subfolders instead of one flat pile.
+              const isChannel = (req.playlist as { kind?: string }).kind === 'channel';
+              const raw = isChannel ? v.playlistTitle?.trim() || (v as { uploader?: string }).uploader?.trim() : undefined;
+              const subfolder = raw
+                ? raw.replace(/[\\/:*?"<>|#%{}$!'@+`=]/g, '').trim().slice(0, 80) || undefined
+                : undefined;
+              return {
+                id: `${id}-item-${i}`,
+                videoId: v.id,
+                title: v.title,
+                index: v.index,
+                status: 'queued' as const,
+                progress: 0,
+                speedBytesPerSecond: 0,
+                etaSeconds: 0,
+                downloadedBytes: 0,
+                totalBytes: 0,
+                attempts: 0,
+                sourceUrl: v.url,
+                ...(subfolder ? { subfolder } : {}),
+              };
+            }),
           createdAt: now,
           updatedAt: now,
           order: jobs.length,
@@ -344,7 +354,11 @@ export function installWebVault(): void {
           const files = await listLibraryFiles();
           const fromDir: LocalVideo[] = files.map((f) => {
             const parts = f.path.split('/');
-            const playlistTitle = parts.length > 1 ? parts[0] : undefined;
+            const playlistTitle = parts.length > 2
+              ? `${parts[parts.length - 3]} / ${parts[parts.length - 2]}`
+              : parts.length > 1
+                ? parts[parts.length - 2]
+                : undefined;
             const title = toDisplayTitle(f.name.replace(/\.[^.]+$/, ''));
             return {
               id: `fs:${f.path}`,

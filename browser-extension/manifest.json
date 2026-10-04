@@ -3,7 +3,7 @@
   "name": "PlaylistVault: Download locally",
   "description": "Send any playing video — YouTube, Udemy or direct MP4/M3U8 — to the local PlaylistVault desktop app.",
   "version": "1.1.0",
-  "permissions": ["activeTab", "contextMenus", "scripting"],
+  "permissions": ["activeTab", "contextMenus", "scripting", "downloads"],
   "host_permissions": ["<all_urls>"],
   "action": { "default_title": "Download playing video with PlaylistVault" },
   "background": { "service_worker": "background.js" },

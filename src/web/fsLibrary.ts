@@ -162,11 +162,11 @@ async function fileEntries(dir: FileSystemDirectoryHandle, prefix: string, out: 
       } catch {
         /* unreadable entry — skip */
       }
-    } else if (entry.kind === 'directory' && !prefix) {
-      // One level of playlist subfolders.
+    } else if (entry.kind === 'directory' && prefix.split('/').filter(Boolean).length < 2) {
+      // Two levels: Channel / Playlist / file (desktop channel archive parity).
       try {
         const sub = await dir.getDirectoryHandle(entry.name);
-        await fileEntries(sub as unknown as FileSystemDirectoryHandle, entry.name, out);
+        await fileEntries(sub as unknown as FileSystemDirectoryHandle, prefix ? `${prefix}/${entry.name}` : entry.name, out);
       } catch {
         /* skip */
       }
@@ -201,7 +201,9 @@ export async function writeLibraryFile(
   try {
     let target = dir;
     if (subfolder) {
-      target = (await dir.getDirectoryHandle(subfolder, { create: true })) as unknown as FileSystemDirectoryHandle;
+      for (const part of subfolder.split('/').filter(Boolean)) {
+        target = (await target.getDirectoryHandle(part, { create: true })) as unknown as FileSystemDirectoryHandle;
+      }
     }
     const fh = await target.getFileHandle(filename, { create: true });
     const writable = await fh.createWritable();
@@ -218,10 +220,10 @@ export async function readLibraryFile(libraryPath: string): Promise<Blob | null>
   const dir = await getLibraryDir(false);
   if (!dir) return null;
   try {
-    const parts = libraryPath.split('/');
+    const parts = libraryPath.split('/').filter(Boolean);
     let target = dir;
-    if (parts.length > 1) {
-      target = (await dir.getDirectoryHandle(parts[0] as string)) as unknown as FileSystemDirectoryHandle;
+    for (const part of parts.slice(0, -1)) {
+      target = (await target.getDirectoryHandle(part)) as unknown as FileSystemDirectoryHandle;
     }
     const fh = await target.getFileHandle(parts[parts.length - 1] as string);
     return await fh.getFile();

@@ -82,6 +82,22 @@ function findPlayingVideo() {
   return null;
 }
 
+function isDirectFile(url) {
+  // Direct media the browser itself can save: progressive MP4/WebM/audio/M3U8.
+  // YouTube/Udemy watch pages still need the desktop engine via handoff.
+  return /\.(mp4|webm|mkv|m4v|mov|mp3|m4a|opus|flac|wav|m3u8)(\?|#|$)/i.test(url || '');
+}
+
+async function directDownload(url) {
+  if (!isDirectFile(url)) return false;
+  try {
+    await chrome.downloads.download({ url, saveAs: false });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function handoff(url, source) {
   if (!url || typeof url !== 'string') return;
   if (url.startsWith('blob:')) {
@@ -94,9 +110,12 @@ function handoff(url, source) {
     return;
   }
   if (!/^https?:\/\//i.test(url) || url.length > 8192) return;
-  // Also accept data: for completeness? No, skip
-  const target = `playlistvault://add?url=${encodeURIComponent(url)}&src=${encodeURIComponent(source || 'ext')}`;
-  chrome.tabs.create({ url: target, active: false }).then((tab) => {
-    if (tab.id !== undefined) setTimeout(() => chrome.tabs.remove(tab.id), 1000);
-  }).catch(() => undefined);
+  // Direct files save in-browser; pages hand off to the desktop engine.
+  directDownload(url).then((saved) => {
+    if (saved) return;
+    const target = `playlistvault://add?url=${encodeURIComponent(url)}&src=${encodeURIComponent(source || 'ext')}`;
+    chrome.tabs.create({ url: target, active: false }).then((tab) => {
+      if (tab.id !== undefined) setTimeout(() => chrome.tabs.remove(tab.id), 1000);
+    }).catch(() => undefined);
+  });
 }

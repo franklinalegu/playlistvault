@@ -99,6 +99,12 @@ The About page lists **every desktop build for download on request**, with the m
 
 Vercel serverless functions have short timeouts and no `yt-dlp` binary, so hosted analysis is limited (singles work, large playlists may not). For full playlist power, self-host the API on any Node box with `yt-dlp` on `PATH` and point the web build at it — the endpoints stream results the same way, with longer timeouts and real binaries.
 
+```bash
+VITE_API_BASE=https://your-api-host npm run build:web   # web/PWA + Android APK use this API host
+```
+
+The Android APK (Capacitor) has no local `/api/*` server, so set `VITE_API_BASE` at build time to reach your hosted backend; on-device saves go through Android's DownloadManager into `Downloads/PlaylistVault/`. Channel archives keep the desktop layout (`Channel/Playlist/01 - Title.mp4`). The browser extension downloads direct media files in-browser and hands watch pages to the desktop app via `playlistvault://`.
+
 ## Scripts
 
 | Script | Purpose |

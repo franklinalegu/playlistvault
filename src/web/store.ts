@@ -161,10 +161,30 @@ export function recordSave(rec: SavedRecord): void {
   writeJson(LS_SAVES, next);
 }
 
+/**
+ * Base URL of the hosted API (yt-dlp engine). Same-origin by default; set
+ * `VITE_API_BASE=https://your-host` for packaged clients (Android APK,
+ * self-hosted frontends) whose WebView has no local /api/* server.
+ */
+export function apiBase(): string {
+  try {
+    const base = (import.meta as unknown as { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE;
+    if (typeof base === 'string' && base.trim()) return base.trim().replace(/\/+$/, '');
+  } catch {
+    /* non-Vite context (tests) — same-origin */
+  }
+  return '';
+}
+
 /** Server streaming endpoint for one video file. */
 export function videoFileUrl(videoUrl: string, quality: string, audioOnly: boolean): string {
   const q = new URLSearchParams({ url: videoUrl, quality, audioOnly: audioOnly ? '1' : '0' });
-  return `/api/video?${q.toString()}`;
+  return `${apiBase()}/api/video?${q.toString()}`;
+}
+
+/** Analyze endpoint (playlist metadata). */
+export function analyzeUrl(): string {
+  return `${apiBase()}/api/analyze`;
 }
 
 /** Filename-safe title with the right extension. Exported for engine + UI. */

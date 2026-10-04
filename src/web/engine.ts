@@ -21,6 +21,7 @@ import {
   videoFileUrl,
 } from './store';
 import { writeLibraryFile } from './fsLibrary';
+import { isCapacitorNative } from './detect';
 
 const controllers = new Map<string, AbortController>();
 let pumping = false;
@@ -154,6 +155,37 @@ async function downloadItem(job: DownloadJob, item: DownloadItem, signal: AbortS
   }));
 
   try {
+    // Capacitor WebView has no File System Access API and no local /api/*
+    // server: hand the http(s) file URL to the native DownloadListener
+    // (MainActivity → Android DownloadManager) instead of fetch+blob.
+    if (isCapacitorNative()) {
+      const url = videoFileUrl(source, job.options.quality, job.options.audioOnly);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = safeFilename(item.title, job.options.audioOnly);
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      recordSave({
+        filename: a.download,
+        title: item.title,
+        bytes: 0,
+        savedAt: new Date().toISOString(),
+        quality: job.options.quality,
+        audioOnly: job.options.audioOnly,
+        libraryPath: null,
+      });
+      updateItem(job.id, item.id, (i) => ({
+        ...i,
+        status: 'completed',
+        progress: 1,
+        downloadedBytes: i.totalBytes || 0,
+        outputPath: a.download,
+        completedAt: new Date().toISOString(),
+      }));
+      return;
+    }
     const res = await fetch(videoFileUrl(source, job.options.quality, job.options.audioOnly), { signal });
     if (!res.ok) throw new Error(`Download failed (HTTP ${res.status}).`);
     const contentType = res.headers.get('content-type') ?? '';
@@ -192,8 +224,14 @@ async function downloadItem(job: DownloadJob, item: DownloadItem, signal: AbortS
       }
     }
 
-    const filename = safeFilename(item.title, job.options.audioOnly);
-    const subfolder = job.options.createPlaylistFolder ? sanitizeFolder(job.playlistTitle) : undefined;
+    const count = job.items.length || 1;
+    const width = Math.max(2, String(Math.max(count, 1)).length);
+    const prefix = job.options.numberFiles ? `${String(item.index).padStart(width, '0')} - ` : '';
+    const filename = `${prefix}${safeFilename(item.title, job.options.audioOnly)}`;
+    const parts: string[] = [];
+    if (job.options.createPlaylistFolder) parts.push(sanitizeFolder(job.playlistTitle));
+    if (item.subfolder && item.subfolder !== parts[0]) parts.push(sanitizeFolder(item.subfolder));
+    const subfolder = parts.length ? parts.join('/') : undefined;
     const mime = job.options.audioOnly ? 'audio/mpeg' : 'video/mp4';
 
     const libraryPath = await writeLibraryFile(filename, chunks, mime, subfolder);
