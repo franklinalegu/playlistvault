@@ -216,14 +216,6 @@ export function About(): JSX.Element {
               </pre>
             </details>
           )}
-          {update.status === 'up-to-date' && (
-            <div className="mt-4 border-t border-white/[0.06] pt-4">
-              <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-widest text-slate-400">
-                Installers — download on request
-              </h4>
-              <DesktopDownloads />
-            </div>
-          )}
         </section>
 
         {/* Engine health — yt-dlp / ffmpeg at a glance */}
@@ -308,29 +300,27 @@ export function About(): JSX.Element {
           )}
         </section>
 
-        <section className="glass p-5">
-          <h3 className="mb-2 text-sm font-semibold text-white">
-            {isWebBuild() ? 'Web app — no install needed' : 'Web + install options'}
-          </h3>
-          <p className="mb-4 text-xs leading-relaxed text-slate-400">
-            {isWebBuild()
-              ? isStandalonePwa()
+        {/* Website-only: installer downloads live on the site (/download),
+            never inside the installed desktop app. */}
+        {isWebBuild() && (
+          <section className="glass p-5">
+            <h3 className="mb-2 text-sm font-semibold text-white">
+              Web app — no install needed
+            </h3>
+            <p className="mb-4 text-xs leading-relaxed text-slate-400">
+              {isStandalonePwa()
                 ? 'You are running the installed web app. It works offline for the shell; analysis and saves use the hosted service.'
-                : 'You are using PlaylistVault directly in the browser — nothing was installed. You can keep using it here or install it as an app.'
-              : 'Prefer the browser? The same app runs on the web with no install, and it is installable as a PWA.'}
-          </p>
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <InstallButton compact />
-          </div>
-          {update.status !== 'up-to-date' && (
-            <>
-              <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-widest text-slate-400">
-                Desktop apps — download on request
-              </h4>
-              <DesktopDownloads />
-            </>
-          )}
-        </section>
+                : 'You are using PlaylistVault directly in the browser — nothing was installed. You can keep using it here or install it as an app.'}
+            </p>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <InstallButton compact />
+            </div>
+            <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-widest text-slate-400">
+              Desktop apps — download on request
+            </h4>
+            <DesktopDownloads />
+          </section>
+        )}
 
         <section className="glass border-amber-500/20 bg-amber-500/[0.06] p-5">
           <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-200">
