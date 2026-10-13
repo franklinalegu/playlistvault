@@ -70,18 +70,66 @@ export function registerIpcHandlers(deps: Deps): void {
   handle<PlaylistInfo>(IPC.playlistAnalyze, async (req: AnalyzeRequest) => {
     activeAnalysis?.cancel();
     const prefs = settings.get();
-    const handleRef = analyzePlaylist(
-      req.url,
-      req.quality,
-      prefs.browserCookieSource,
-      prefs.proxy,
-      prefs.cookiesFile
-    );
-    activeAnalysis = handleRef;
+    const startAnalysis = (): AnalyzeHandle => {
+      const handleRef = analyzePlaylist(
+        req.url,
+        req.quality,
+        prefs.browserCookieSource,
+        prefs.proxy,
+        prefs.cookiesFile
+      );
+      activeAnalysis = handleRef;
+      return handleRef;
+    };
+
+    // Self-healing analyze: engine failures (locked / missing / crashed /
+    // quarantined binary) are repaired inline and retried once, so the user
+    // sees a working result instead of "Could not read that link".
+    // Content failures (private, 403, removed…) throw through untouched.
+    const runAndClear = async (): Promise<PlaylistInfo> => {
+      const handleRef = startAnalysis();
+      try {
+        return await handleRef.promise;
+      } finally {
+        if (activeAnalysis === handleRef) activeAnalysis = null;
+      }
+    };
+
     try {
-      return await handleRef.promise;
-    } finally {
-      if (activeAnalysis === handleRef) activeAnalysis = null;
+      return await runAndClear();
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const isEngineFailure =
+        /currently in use or locked|crashed on launch|could not be launched|was not found|quarantin|corrupt|failed to start|exited unexpectedly/i.test(msg);
+      if (!isEngineFailure) throw error;
+
+      // Transient lock (AV scan / background update replacing the exe):
+      // wait for the lock to clear and retry once — no reinstall needed.
+      if (/currently in use or locked/i.test(msg)) {
+        log.info('ipc:playlist:analyze', 'self-heal: transient lock, waiting 2s then retrying');
+        await new Promise((r) => setTimeout(r, 2000));
+        return await runAndClear();
+      }
+
+      // Missing / crashed / quarantined binary: verify, reinstall when broken,
+      // then retry once. If the binary probes healthy, the failure is real —
+      // rethrow the original error instead of looping.
+      try {
+        const bins = await checkBinaries();
+        const yt = bins.find((b) => b.name === 'yt-dlp');
+        if (yt?.found) throw error;
+        log.info('ipc:playlist:analyze', `self-heal: yt-dlp broken (${yt?.error ?? 'missing'}) — reinstalling`);
+        await installDependency('yt-dlp', (progress) => send(IPC.appDependencyProgress, progress));
+        log.info('ipc:playlist:analyze', 'self-heal: reinstall done, retrying analysis');
+        return await runAndClear();
+      } catch (healError) {
+        // If self-heal itself failed, surface the original analysis error when
+        // it is more actionable, otherwise the heal error.
+        if (healError === error) throw error;
+        const healMsg = healError instanceof Error ? healError.message : String(healError);
+        log.warn('ipc:playlist:analyze', `self-heal failed: ${healMsg}`);
+        throw error;
+      }
     }
   });
 

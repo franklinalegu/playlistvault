@@ -895,7 +895,11 @@ function describeDestinationError(error: unknown, destination: string): string {
 }
 
 function isPermanentFailure(message: string): boolean {
-  return /private|members-only|unavailable|removed|age-restricted|not allowed|out of free space|Permission denied|was not found|read-only|too long for Windows|sign in to confirm|not a bot|confirm you.*are not a bot|could not copy.*cookie|http error 403|403: forbidden|forbidden.*denied|unsupported url|no longer supports|outdated version|requires a newer version|signature solving|n challenge solving|only images are available|po token|visitor data|yt-dlp is out of date|browser sign-in required|failed to start|exited unexpectedly/i.test(
+  // NOTE: the transient lock message ("currently in use or locked") is
+  // deliberately NOT here — an AV scan / background update clears in seconds
+  // and deserves a retry with backoff. Crash/corrupt messages are permanent:
+  // retrying the same broken binary never helps until it is reinstalled.
+  return /private|members-only|unavailable|removed|age-restricted|not allowed|out of free space|Permission denied|was not found|read-only|too long for Windows|sign in to confirm|not a bot|confirm you.*are not a bot|could not copy.*cookie|http error 403|403: forbidden|forbidden.*denied|unsupported url|no longer supports|outdated version|requires a newer version|signature solving|n challenge solving|only images are available|po token|visitor data|yt-dlp is out of date|browser sign-in required|failed to start|exited unexpectedly|crashed on launch|could not be launched/i.test(
     message
   );
 }
@@ -903,7 +907,9 @@ function isPermanentFailure(message: string): boolean {
 function isSystemicFailure(message: string): boolean {
   // Systemic = will fail for every video in the job (missing binary, outdated engine, FFmpeg broken)
   // Per-video failures like private/unavailable are NOT systemic and should be retried per-item.
-  return /yt-dlp was not found|yt-dlp failed to start|yt-dlp exited unexpectedly|FFmpeg failed while merging|yt-dlp is out of date|signature solving|n challenge solving|po token|visitor data|outdated version|requires a newer version/i.test(
+  // The transient lock is systemic (every spawn will hit the same lock) so the
+  // rest fail fast with the same message — but it stays retryable per-item.
+  return /yt-dlp was not found|yt-dlp failed to start|yt-dlp exited unexpectedly|yt-dlp is currently in use|currently in use or locked|FFmpeg failed while merging|yt-dlp is out of date|signature solving|n challenge solving|po token|visitor data|outdated version|requires a newer version|crashed on launch|could not be launched/i.test(
     message
   );
 }

@@ -34,6 +34,23 @@ describe('humanizeYtDlpError — YouTube anti-bot & transport', () => {
   it('still maps 429 to rate-limit', () => {
     expect(humanizeYtDlpError('HTTP Error 429 Too Many Requests', 1)).toMatch(/rate-limit/i);
   });
+
+  it('maps spawn EBUSY to transient lock hint (never generic "failed to start")', () => {
+    const msg = humanizeYtDlpError('spawn EBUSY', -1);
+    expect(msg).toMatch(/currently in use or locked/i);
+    expect(msg).not.toMatch(/failed to start/i);
+  });
+
+  it('maps Windows crash codes to quarantine/reinstall hint', () => {
+    expect(humanizeYtDlpError('', 3221225794)).toMatch(/crashed on launch|antivirus|reinstall/i);
+    expect(humanizeYtDlpError('', 1073807364)).toMatch(/crashed on launch|antivirus|reinstall/i);
+  });
+
+  it('fallback for unknown spawn failure names antivirus/lock, not the raw exit code', () => {
+    const msg = humanizeYtDlpError('', -1);
+    expect(msg).toMatch(/antivirus|locked|reinstall/i);
+    expect(msg).not.toMatch(/4294967295/);
+  });
 });
 
 describe('buildDownloadArgs proxy auth', () => {

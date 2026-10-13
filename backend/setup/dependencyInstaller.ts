@@ -26,6 +26,11 @@ const FFMPEG_ZIP_MAC = 'https://evermeet.cx/ffmpeg/getrelease/zip';
 
 export type ProgressReporter = (progress: DependencyProgress) => void;
 
+// Serialize installs: a manual "Update yt-dlp" click racing the background
+// auto-updater used to replace yt-dlp.exe mid-spawn → spawn EBUSY → the exact
+// "Could not read that link" from the report. Second caller waits its turn.
+let installChain: Promise<unknown> = Promise.resolve();
+
 /**
  * Downloads the external tools into the per-user data folder.
  *
@@ -37,23 +42,29 @@ export async function installDependency(
   name: DependencyName,
   report: ProgressReporter
 ): Promise<string> {
-  const binDir = getUserBinDir();
-  await fsp.mkdir(binDir, { recursive: true });
+  const doInstall = async (): Promise<string> => {
+    const binDir = getUserBinDir();
+    await fsp.mkdir(binDir, { recursive: true });
 
-  try {
-    const result =
-      name === 'yt-dlp'
-        ? await installYtDlp(binDir, report)
-        : await installFfmpeg(binDir, report);
+    try {
+      const result =
+        name === 'yt-dlp'
+          ? await installYtDlp(binDir, report)
+          : await installFfmpeg(binDir, report);
 
-    clearBinaryCache();
-    report({ name, stage: 'done', percent: 100, message: 'Installed' });
-    return result;
-  } catch (error) {
-    const message = describeError(error);
-    report({ name, stage: 'error', percent: 0, message });
-    throw new Error(message);
-  }
+      clearBinaryCache();
+      report({ name, stage: 'done', percent: 100, message: 'Installed' });
+      return result;
+    } catch (error) {
+      const message = describeError(error);
+      report({ name, stage: 'error', percent: 0, message });
+      throw new Error(message);
+    }
+  };
+  // Chain so concurrent clicks/updates serialize instead of stomping the exe.
+  const chained = installChain.then(() => doInstall());
+  installChain = chained.catch(() => undefined);
+  return chained;
 }
 
 async function installYtDlp(binDir: string, report: ProgressReporter): Promise<string> {
@@ -186,23 +197,58 @@ async function installFfmpeg(binDir: string, report: ProgressReporter): Promise<
 
 /**
  * Move a freshly downloaded file into place. On Windows a running executable
- * cannot be overwritten, so the old copy is renamed aside first.
+ * cannot be overwritten, and antivirus often holds a fresh download open for
+ * a second — so retry a few times before reporting "in use".
  */
 async function replaceFile(from: string, to: string): Promise<void> {
   if (fs.existsSync(to)) {
     const stale = `${to}.old-${Date.now()}`;
-    try {
-      await fsp.rename(to, stale);
-      await fsp.rm(stale, { force: true }).catch(() => undefined);
-    } catch {
+    let renamed = false;
+    let lastErr: unknown = null;
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
+      try {
+        await fsp.rename(to, stale);
+        renamed = true;
+        break;
+      } catch (e) {
+        lastErr = e;
+        await new Promise((r) => setTimeout(r, 400 * attempt));
+      }
+    }
+    if (!renamed) {
       // Locked by a running process — remove what we downloaded and report.
       await fsp.rm(from, { force: true }).catch(() => undefined);
+      const raw = lastErr instanceof Error ? lastErr.message : String(lastErr);
+      if (/EBUSY|EPERM|EACCES|in use|busy/i.test(raw)) {
+        throw new Error(
+          `${path.basename(to)} is currently in use. Close any running downloads, wait a few seconds, and try again.`
+        );
+      }
       throw new Error(
         `${path.basename(to)} is currently in use. Close any running downloads and try again.`
       );
     }
+    await fsp.rm(stale, { force: true }).catch(() => undefined);
   }
-  await fsp.rename(from, to);
+  // The final rename can also hit an AV scan lock — retry briefly.
+  let moved = false;
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    try {
+      await fsp.rename(from, to);
+      moved = true;
+      break;
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : String(e);
+      if (!/EBUSY|EPERM|EACCES|busy/i.test(raw) || attempt === 4) throw e;
+      await new Promise((r) => setTimeout(r, 400 * attempt));
+    }
+  }
+  if (!moved) {
+    await fsp.rm(from, { force: true }).catch(() => undefined);
+    throw new Error(
+      `${path.basename(to)} is currently in use. Close any running downloads, wait a few seconds, and try again.`
+    );
+  }
 }
 
 async function download(

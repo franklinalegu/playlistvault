@@ -92,18 +92,61 @@ export function runYtDlpCollect(
     }
   });
 
-  const promise = handle.done
-    .then(({ code, stderr }) => {
-      if (code !== 0) {
-        throw new Error(humanizeYtDlpError(stderr, code));
-      }
-      return lines.join('\n');
-    })
-    .catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      // Spawn failures (ENOENT etc.) reject instead of resolving — humanize them too.
-      throw new Error(humanizeYtDlpError(msg, -1));
+  const attemptOnce = (): Promise<string> =>
+    handle.done
+      .then(({ code, stderr }) => {
+        if (code !== 0) {
+          throw new Error(humanizeYtDlpError(stderr, code));
+        }
+        return lines.join('\n');
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Spawn failures (ENOENT etc.) reject instead of resolving — humanize them too.
+        // Already-humanized messages (thrown above) pass through untouched so
+        // the EBUSY/crash-code guidance is never double-wrapped.
+        if (/currently in use or locked|crashed on launch|could not be launched|was not found|quarantine|corrupted|Permission denied/i.test(msg)) {
+          throw err;
+        }
+        throw new Error(humanizeYtDlpError(msg, -1));
+      });
+
+  // A lock (EBUSY) means the exe is being replaced by an update or held by
+  // antivirus — transient. One delayed retry heals it without bothering the
+  // user; anything else fails fast with the humanized message.
+  const promise = attemptOnce().catch((err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/currently in use or locked/i.test(msg)) throw err;
+    return new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const retryLines: string[] = [];
+        try {
+          const retry = runYtDlp(args, {
+            ...options,
+            onStdoutLine: (line) => {
+              retryLines.push(line);
+              options.onStdoutLine?.(line);
+            }
+          });
+          retry.done
+            .then(({ code, stderr }) => {
+              if (code !== 0) reject(new Error(humanizeYtDlpError(stderr, code)));
+              else resolve(retryLines.join('\n'));
+            })
+            .catch((e: unknown) => {
+              const m = e instanceof Error ? e.message : String(e);
+              reject(new Error(humanizeYtDlpError(m, -1)));
+            });
+        } catch (e) {
+          reject(e);
+        }
+      }, 1500);
+      options.signal?.addEventListener('abort', () => {
+        clearTimeout(timer);
+        reject(new Error('Cancelled.'));
+      }, { once: true });
     });
+  });
 
   return { promise, kill: () => handle.kill() };
 }
@@ -115,11 +158,36 @@ export function humanizeYtDlpError(stderr: string, code: number | null): string 
   const text = (stderr || '').toLowerCase();
   const hasStderr = text.trim().length > 0;
 
-  // Empty stderr + non-zero exit (spawn killed / crashed) — the raw
-  // "exit code 4294967295" is useless to users; give an actionable message.
+  // Spawn-level lock: the exe is being replaced (auto-update / manual
+  // reinstall) or held open by antivirus. Transient — a retry a moment
+  // later usually succeeds. This MUST come before the generic empty-stderr
+  // branches so "spawn EBUSY" never surfaces as "failed to start".
+  // NOTE: the message deliberately avoids the phrase "failed to start" so
+  // downloadManager treats it as transient (retryable) rather than permanent.
+  if (text.includes('ebusy') || text.includes('currently in use') || text.includes('resource busy')) {
+    return 'yt-dlp is currently in use or locked (antivirus scan or background update in progress). Close any running downloads, wait a few seconds, then retry. If you just clicked Update yt-dlp, wait for it to finish first.';
+  }
+
+  // Windows crash codes: the process died before printing anything useful.
+  // 3221225794 (0xC0000142 DLL_INIT_FAILED), 3221225477 (0xC0000005 access
+  // violation), 3221225501 (illegal instruction) and 1073807364 are almost
+  // always antivirus quarantine/corruption or a truncated download — not a
+  // bad link. Seen in the wild Sept 2026 with parallel spawns.
+  if (
+    normalizedCode === 3221225794 ||
+    normalizedCode === 3221225477 ||
+    normalizedCode === 3221225501 ||
+    normalizedCode === 1073807364 ||
+    normalizedCode === -1073741502
+  ) {
+    return 'yt-dlp crashed on launch (Windows stopped the process). This is usually antivirus quarantine or a corrupted binary — not your link. Allow yt-dlp.exe in Windows Security → Protection history, reinstall it in Settings → Dependencies, then retry.';
+  }
+
+  // Empty stderr + non-zero exit (spawn killed / crashed) — raw Windows codes
+  // are useless to users; give an actionable message (never the raw code).
   if (!hasStderr && normalizedCode !== 0 && normalizedCode !== null) {
     if (normalizedCode === -1) {
-      return 'yt-dlp failed to start (exit code 4294967295). This usually means the binary is missing, blocked by antivirus, or crashed. Open Settings → Dependencies to reinstall yt-dlp, then retry. If it persists, open the log file for details.';
+      return 'yt-dlp could not be launched. This usually means the binary is missing, blocked by antivirus, or crashed. Allow yt-dlp.exe in Windows Security → Protection history, reinstall it in Settings → Dependencies, then retry. If it persists, open the log file for details.';
     }
     return `yt-dlp exited unexpectedly (exit code ${normalizedCode}). Try updating yt-dlp in Settings → Dependencies and retry. If the link contains &list=, try it as a single video (remove &list=).`;
   }
@@ -194,9 +262,13 @@ export function humanizeYtDlpError(stderr: string, code: number | null): string 
     .pop();
 
   if (lastLine) return lastLine.replace(/^ERROR:\s*/, '');
+  // EBUSY can also arrive with no ERROR: line (pure spawn failure) — check again on raw text.
+  if (/ebusy|locked|currently in use/i.test(stderr || '')) {
+    return 'yt-dlp is currently in use or locked (antivirus scan or background update in progress). Close any running downloads, wait a few seconds, then retry. If you just clicked Update yt-dlp, wait for it to finish first.';
+  }
   // Fallback — never surface raw 4294967295 to users.
   if (normalizedCode === 4294967295 || normalizedCode === -1) {
-    return 'yt-dlp failed to start. Open Settings → Dependencies to verify yt-dlp is installed, then retry. If the URL contains &list=, try removing it to download the single video.';
+    return 'yt-dlp could not be launched. This is usually antivirus holding yt-dlp.exe, a background update replacing it, or a corrupted download — not your link. Wait a few seconds and retry; if it persists, allow yt-dlp.exe in Windows Security → Protection history and reinstall it in Settings → Dependencies.';
   }
   return `Download failed (exit code ${normalizedCode ?? 'unknown'}). Try updating yt-dlp in Settings → Dependencies and check the log file for details.`;
 }
