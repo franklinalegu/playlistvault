@@ -73,9 +73,17 @@ async function fetchNodeRuntime() {
     return;
   }
 
-  const archive = isWindows
-    ? `node-v${NODE_VERSION}-win-${arch}.zip`
-    : `node-v${NODE_VERSION}-darwin-${arch}.tar.gz`;
+  // Windows: nodejs.org serves the standalone exe directly, so skip the zip
+  // and Expand-Archive step entirely (the archive extraction failed on CI,
+  // leaving the Windows builder without a runtime).
+  if (isWindows) {
+    console.log(`• Node.js runtime: downloading ${NODE_VERSION} (${arch})…`);
+    await download(`https://nodejs.org/dist/v${NODE_VERSION}/win-${arch}/node.exe`, target);
+    console.log('  ✓ Node.js runtime ready');
+    return;
+  }
+
+  const archive = `node-v${NODE_VERSION}-darwin-${arch}.tar.gz`;
   const url = `https://nodejs.org/dist/v${NODE_VERSION}/${archive}`;
   const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'playlistvault-node-'));
   const archivePath = path.join(tmpDir, archive);
@@ -83,18 +91,11 @@ async function fetchNodeRuntime() {
   try {
     console.log(`• Node.js runtime: downloading ${NODE_VERSION} (${arch})…`);
     await download(url, archivePath);
-    if (isWindows) {
-      await execFileAsync('powershell', [
-        '-NoProfile', '-Command',
-        `Expand-Archive -Path "${archivePath}" -DestinationPath "${tmpDir}" -Force`
-      ], { windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
-    } else {
-      await execFileAsync('tar', ['-xzf', archivePath, '-C', tmpDir]);
-    }
-    const found = findFile(tmpDir, isWindows ? 'node.exe' : 'node');
+    await execFileAsync('tar', ['-xzf', archivePath, '-C', tmpDir]);
+    const found = findFile(tmpDir, 'node');
     if (!found) throw new Error('Node.js runtime was not found inside the archive');
     await fsp.copyFile(found, target);
-    if (!isWindows) await fsp.chmod(target, 0o755);
+    await fsp.chmod(target, 0o755);
     console.log('  ✓ Node.js runtime ready');
   } finally {
     await fsp.rm(tmpDir, { recursive: true, force: true });
@@ -153,13 +154,22 @@ async function fetchFfmpegMac() {
     return;
   }
 
+  // evermeet.cx (the old source) is gone — HTTP 410. Martin Riedl's build
+  // server publishes static macOS builds under a versioned path; read the
+  // index and use whatever build is current for this architecture.
+  const macArch = arch === 'arm64' ? 'arm64' : 'amd64';
+  const index = await fetchText('https://ffmpeg.martin-riedl.de/');
+  const base = 'https://ffmpeg.martin-riedl.de';
+
   const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'playlistvault-ffmpeg-'));
   try {
     console.log('• FFmpeg: downloading macOS builds…');
     const AdmZip = (await import('adm-zip')).default;
     for (const name of targets) {
+      const match = index.match(new RegExp(`/download/macos/${macArch}/[^"']+/${name}\\.zip`));
+      if (!match) throw new Error(`No macOS ${name} build found for ${macArch}`);
       const zipPath = path.join(tmpDir, `${name}.zip`);
-      await download(`https://evermeet.cx/ffmpeg/getrelease/${name}/zip`, zipPath);
+      await download(`${base}${match[0]}`, zipPath);
       const zip = new AdmZip(zipPath);
       const entry = zip.getEntries().find((item) => path.basename(item.entryName) === name);
       if (!entry) throw new Error(`${name} was not found inside the macOS archive`);
@@ -184,6 +194,15 @@ function findFile(dir, filename) {
     }
   }
   return null;
+}
+
+async function fetchText(url) {
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'PlaylistVault build fetcher' },
+    signal: AbortSignal.timeout(60_000)
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
+  return res.text();
 }
 
 async function download(url, target, redirects = 0) {
