@@ -92,24 +92,22 @@ export function runYtDlpCollect(
     }
   });
 
+  // Use the two-argument `.then` so only *spawn* rejections (EBUSY, ENOENT)
+  // are humanized. A non-zero exit throws an already-humanized error from the
+  // fulfilled branch; running that through the humanizer again used to
+  // mislabel content errors (removed video, 403, sign-in required) as an
+  // antivirus/lock failure and trigger an unnecessary yt-dlp reinstall.
   const attemptOnce = (): Promise<string> =>
-    handle.done
-      .then(({ code, stderr }) => {
-        if (code !== 0) {
-          throw new Error(humanizeYtDlpError(stderr, code));
-        }
+    handle.done.then(
+      ({ code, stderr }) => {
+        if (code !== 0) throw new Error(humanizeYtDlpError(stderr, code));
         return lines.join('\n');
-      })
-      .catch((err: unknown) => {
+      },
+      (err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        // Spawn failures (ENOENT etc.) reject instead of resolving — humanize them too.
-        // Already-humanized messages (thrown above) pass through untouched so
-        // the EBUSY/crash-code guidance is never double-wrapped.
-        if (/currently in use or locked|crashed on launch|could not be launched|was not found|quarantine|corrupted|Permission denied/i.test(msg)) {
-          throw err;
-        }
         throw new Error(humanizeYtDlpError(msg, -1));
-      });
+      }
+    );
 
   // A lock (EBUSY) means the exe is being replaced by an update or held by
   // antivirus — transient. One delayed retry heals it without bothering the
@@ -128,15 +126,16 @@ export function runYtDlpCollect(
               options.onStdoutLine?.(line);
             }
           });
-          retry.done
-            .then(({ code, stderr }) => {
+          retry.done.then(
+            ({ code, stderr }) => {
               if (code !== 0) reject(new Error(humanizeYtDlpError(stderr, code)));
               else resolve(retryLines.join('\n'));
-            })
-            .catch((e: unknown) => {
+            },
+            (e: unknown) => {
               const m = e instanceof Error ? e.message : String(e);
               reject(new Error(humanizeYtDlpError(m, -1)));
-            });
+            }
+          );
         } catch (e) {
           reject(e);
         }

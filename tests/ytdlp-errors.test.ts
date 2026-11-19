@@ -1,7 +1,59 @@
-import { describe, expect, it } from 'vitest';
-import { humanizeYtDlpError } from '../backend/download/ytdlp';
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
+import { describe, expect, it, vi } from 'vitest';
+import { humanizeYtDlpError, runYtDlpCollect } from '../backend/download/ytdlp';
 import { buildDownloadArgs, buildAnalyzeArgs, buildFormatProbeArgs } from '../backend/download/formats';
 import { DEFAULT_DOWNLOAD_OPTIONS } from '../shared/types';
+
+const { spawnMock } = vi.hoisted(() => ({ spawnMock: vi.fn() }));
+
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>();
+  return { ...actual, spawn: spawnMock, default: { ...actual, spawn: spawnMock } };
+});
+vi.mock('../backend/ffmpeg/binaries', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../backend/ffmpeg/binaries')>();
+  return { ...actual, resolveBinaries: () => ({ ytDlp: 'yt-dlp', ffmpeg: 'ffmpeg' }) };
+});
+
+type FakeChild = EventEmitter & {
+  stdout: PassThrough;
+  stderr: PassThrough;
+  pid: number;
+  killed: boolean;
+  exitCode: number | null;
+};
+
+function fakeChild(): FakeChild {
+  const child = new EventEmitter() as FakeChild;
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  child.pid = 4242;
+  child.killed = false;
+  child.exitCode = null;
+  return child;
+}
+
+describe('runYtDlpCollect — humanize exactly once', () => {
+  it('keeps a content error instead of relabelling it as an antivirus/lock failure', async () => {
+    spawnMock.mockImplementation(() => {
+      const child = fakeChild();
+      setImmediate(() => {
+        child.stderr.write('ERROR: [youtube] dQw4w9WgXcQ: Video unavailable\n');
+        child.stderr.end();
+        child.emit('close', 1);
+      });
+      return child;
+    });
+
+    const err = await runYtDlpCollect(['https://www.youtube.com/watch?v=dQw4w9WgXcQ']).promise
+      .then(() => null)
+      .catch((e: Error) => e);
+
+    expect(err?.message).toMatch(/unavailable or has been removed/i);
+    expect(err?.message).not.toMatch(/could not be launched|antivirus|currently in use/i);
+  });
+});
 
 describe('humanizeYtDlpError — YouTube anti-bot & transport', () => {
   it('maps HTTP 403 to actionable update+cookies hint', () => {
