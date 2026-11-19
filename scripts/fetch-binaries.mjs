@@ -121,23 +121,22 @@ async function fetchFfmpegWindows() {
     return;
   }
 
-  console.log('• FFmpeg: downloading essentials build (~30 MB)…');
+  console.log('• FFmpeg: downloading essentials build (~90 MB)…');
   const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'pv-ffmpeg-'));
   const zipPath = path.join(tmpDir, 'ffmpeg.zip');
+  const extractDir = path.join(tmpDir, 'extracted');
 
   try {
     await download(FFMPEG_ZIP, zipPath);
     console.log('  extracting…');
+    await fsp.mkdir(extractDir, { recursive: true });
 
-    // PowerShell's Expand-Archive avoids adding a zip dependency.
-    await execFileAsync(
-      'powershell',
-      ['-NoProfile', '-Command', `Expand-Archive -Path "${zipPath}" -DestinationPath "${tmpDir}" -Force`],
-      { windowsHide: true, maxBuffer: 16 * 1024 * 1024 }
-    );
+    // tar (bsdtar ships with Windows 10+) handles zip reliably on CI, unlike
+    // Expand-Archive which extracted nothing on the windows-latest runner.
+    await execFileAsync('tar', ['-xf', zipPath, '-C', extractDir]);
 
     for (const name of ['ffmpeg.exe', 'ffprobe.exe']) {
-      const found = findFile(tmpDir, name);
+      const found = findFile(extractDir, name);
       if (!found) throw new Error(`${name} was not found inside the archive`);
       await fsp.copyFile(found, path.join(BIN_DIR, name));
     }
